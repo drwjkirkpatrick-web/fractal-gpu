@@ -154,6 +154,16 @@
       <option value="32">Z² + Re(C)</option>
       <option value="33">1/(Z²+C)</option>
       <option value="34">Bicorn</option>
+      <option value="35">Heart Mandelbrot</option>
+      <option value="36">Z² − C</option>
+      <option value="37">Z³ − C</option>
+      <option value="38">Log Mandelbrot</option>
+      <option value="39">Asin Mandelbrot</option>
+      <option value="40">Cube Tricorn</option>
+      <option value="41">Magnet Type I</option>
+      <option value="42">Collatz</option>
+      <option value="43">Sqrt Mandelbrot</option>
+      <option value="44">Z·C + Z²</option>
     </select>
   </div>
 
@@ -274,7 +284,7 @@ uniform vec2  u_resolution;   // canvas size in pixels
 uniform vec2  u_center;       // complex plane center
 uniform float u_zoom;         // zoom factor (1 = default view)
 uniform float u_maxIter;      // max iterations
-uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot, 5=Phoenix, 6=Celtic, 7=PerpBS, 8=CSq, 9=Sin, 10=Cos, 11=Exp, 12=Buffalo, 13=Rational, 14=Tan, 15=Newton, 16=Nova, 17=AbsC, 18=Manowar, 19=Lambda, 20=Ducks, 21=PerpCeltic, 22=SinZ2, 23=Cubic, 24=Rational2, 25=Spider, 26=InvC, 27=MulC, 28=Quartic, 29=Quintic, 30=BarJulia, 31=C3, 32=ReC, 33=InvQuad, 34=Bicorn
+uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot, 5=Phoenix, 6=Celtic, 7=PerpBS, 8=CSq, 9=Sin, 10=Cos, 11=Exp, 12=Buffalo, 13=Rational, 14=Tan, 15=Newton, 16=Nova, 17=AbsC, 18=Manowar, 19=Lambda, 20=Ducks, 21=PerpCeltic, 22=SinZ2, 23=Cubic, 24=Rational2, 25=Spider, 26=InvC, 27=MulC, 28=Quartic, 29=Quintic, 30=BarJulia, 31=C3, 32=ReC, 33=InvQuad, 34=Bicorn, 35=Heart, 36=SubC, 37=SubCubic, 38=Log, 39=Asin, 40=CubeTricorn, 41=Magnet, 42=Collatz, 43=Sqrt, 44=ZCPlusZ2
 uniform vec2  u_juliaC;       // Julia set constant c
 uniform float u_power;        // Multibrot exponent
 uniform float u_phoenixP;     // Phoenix parameter p
@@ -540,6 +550,61 @@ void main() {
       // Bicorn: z = conj(z)^2 + c + |z|
       vec2 z_conj_sq = vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y);
       z = z_conj_sq + c + vec2(length(z), 0.0);
+    } else if (u_fractalType == 35) {
+      // Heart Mandelbrot: z = z^2 + c + c*|c|
+      z = cmul(z, z) + c + cmul(c, vec2(abs(c.x), abs(c.y)));
+    } else if (u_fractalType == 36) {
+      // Z^2 - C
+      z = cmul(z, z) - c;
+    } else if (u_fractalType == 37) {
+      // Z^3 - C
+      z = cmul(cmul(z, z), z) - c;
+    } else if (u_fractalType == 38) {
+      // Log Mandelbrot: z = log(z) + c
+      float r = length(z);
+      float theta = atan(z.y, z.x);
+      if (r < 1e-15) r = 1e-15;
+      z = vec2(log(r), theta) + c;
+    } else if (u_fractalType == 39) {
+      // Asin Mandelbrot: z = asin(z) + c
+      // asin(z) = -i * ln(i*z + sqrt(1-z^2))
+      vec2 z2 = cmul(z, z);
+      vec2 one_m_z2 = vec2(1.0, 0.0) - z2;
+      float r = length(one_m_z2);
+      float theta = atan(one_m_z2.y, one_m_z2.x);
+      if (r < 1e-15) r = 1e-15;
+      vec2 sqrt_term = vec2(sqrt(r) * cos(theta * 0.5), sqrt(r) * sin(theta * 0.5));
+      vec2 i_z = vec2(-z.y, z.x);  // i*z
+      vec2 log_in = i_z + sqrt_term;
+      float r2 = length(log_in);
+      float t2 = atan(log_in.y, log_in.x);
+      if (r2 < 1e-15) r2 = 1e-15;
+      z = vec2(t2, -log(r2)) + c;
+    } else if (u_fractalType == 40) {
+      // Cube Tricorn: z = conj(z)^3 + c
+      vec2 zc = vec2(z.x, -z.y);
+      z = cmul(cmul(zc, zc), zc) + c;
+    } else if (u_fractalType == 41) {
+      // Magnet Type I: z = ((z + c)/(z - c))^2
+      vec2 numer = z + c;
+      vec2 denom = z - c;
+      if (dot(denom, denom) < 1e-20) denom = vec2(1e-10, 0.0);
+      vec2 ratio = cdiv(numer, denom);
+      z = cmul(ratio, ratio);
+    } else if (u_fractalType == 42) {
+      // Collatz: z = (1 + 4z - (1 + 2z)*cos(pi*z))/2 + c
+      vec2 one_p_2z = vec2(1.0, 0.0) + 2.0 * z;
+      vec2 cos_term = ccos(3.14159265 * z);
+      z = (vec2(1.0, 0.0) + 4.0 * z - cmul(one_p_2z, cos_term)) * 0.5 + c;
+    } else if (u_fractalType == 43) {
+      // Sqrt Mandelbrot: z = sqrt(z) + c
+      float r = length(z);
+      float theta = atan(z.y, z.x);
+      if (r < 1e-15) r = 1e-15;
+      z = vec2(sqrt(r) * cos(theta * 0.5), sqrt(r) * sin(theta * 0.5)) + c;
+    } else if (u_fractalType == 44) {
+      // Z*C + Z^2
+      z = cmul(z, c) + cmul(z, z);
     } else {
       // Mandelbrot / Julia: z = z^2 + c
       z = cmul(z, z) + c;
@@ -859,6 +924,11 @@ function setFractalType(type) {
   else if (type === 30) { view.centerX = 0; view.centerY = 0; view.zoom = 1.0; }
   else if (type === 33) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
   else if (type === 34) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 35 || type === 36 || type === 40 || type === 41) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 37) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 38 || type === 42) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 39 || type === 43) { view.centerX = 0; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 44) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
