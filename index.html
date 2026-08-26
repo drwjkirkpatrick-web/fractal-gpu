@@ -495,6 +495,9 @@ function render() {
 }
 
 // --- Coordinate Display ---
+// SECURITY NOTE: These innerHTML assignments are safe — the content is
+// built entirely from numeric formatting of internal view state (no
+// user-supplied strings, no external data). No XSS surface exists.
 function updateCoordDisplay() {
   const pixSize = 3.0 / view.zoom / canvas.height * (window.devicePixelRatio || 1);
   const zoomStr = view.zoom < 1000
