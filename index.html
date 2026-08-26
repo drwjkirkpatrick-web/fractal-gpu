@@ -124,6 +124,16 @@
       <option value="2">Burning Ship</option>
       <option value="3">Tricorn (Mandelbar)</option>
       <option value="4">Multibrot (z^n + c)</option>
+      <option value="5">Phoenix</option>
+      <option value="6">Celtic</option>
+      <option value="7">Perp. Burning Ship</option>
+      <option value="8">C-Squared</option>
+      <option value="9">Sine Mandelbrot</option>
+      <option value="10">Cosine Mandelbrot</option>
+      <option value="11">Exp Mandelbrot</option>
+      <option value="12">Buffalo</option>
+      <option value="13">Rational (z²+c/z)</option>
+      <option value="14">Tan Mandelbrot</option>
     </select>
   </div>
 
@@ -144,6 +154,14 @@
     <div class="slider-row">
       <label><span>Exponent n</span><span id="powerVal">3.0</span></label>
       <input type="range" id="power" min="2" max="10" step="0.1" value="3">
+    </div>
+  </div>
+
+  <div class="section" id="phoenixParams" style="display:none;">
+    <div class="section-label">Phoenix Parameter (p)</div>
+    <div class="slider-row">
+      <label><span>Phoenix p</span><span id="phoenixPVal">0.5</span></label>
+      <input type="range" id="phoenixP" min="-1" max="1" step="0.01" value="0.5">
     </div>
   </div>
 
@@ -193,7 +211,7 @@
   <div class="hint">
     <kbd>Scroll</kbd> zoom · <kbd>Drag</kbd> pan · <kbd>H</kbd> toggle panel<br>
     <kbd>R</kbd> reset · <kbd>S</kbd> screenshot · <kbd>Space</kbd> random palette<br>
-    <kbd>1-5</kbd> switch fractal type
+    <kbd>1-0</kbd> switch fractal type (1-10)
   </div>
 </div>
 
@@ -236,9 +254,10 @@ uniform vec2  u_resolution;   // canvas size in pixels
 uniform vec2  u_center;       // complex plane center
 uniform float u_zoom;         // zoom factor (1 = default view)
 uniform float u_maxIter;      // max iterations
-uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot
+uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot, 5=Phoenix, 6=Celtic, 7=PerpBS, 8=CSq, 9=Sin, 10=Cos, 11=Exp, 12=Buffalo, 13=Rational, 14=Tan
 uniform vec2  u_juliaC;       // Julia set constant c
 uniform float u_power;        // Multibrot exponent
+uniform float u_phoenixP;     // Phoenix parameter p
 uniform int   u_palette;      // color palette index
 uniform float u_colorSpeed;   // color cycling speed
 uniform float u_colorOffset;  // color cycling offset
@@ -257,6 +276,32 @@ vec2 cpow(vec2 z, float n) {
   float theta = atan(z.y, z.x);
   float rn = pow(r, n);
   return vec2(rn * cos(n * theta), rn * sin(n * theta));
+}
+
+// Complex division: a / b
+vec2 cdiv(vec2 a, vec2 b) {
+  float denom = dot(b, b);
+  if (denom < 1e-15) return vec2(0.0);
+  return vec2((a.x * b.x + a.y * b.y) / denom, (a.y * b.x - a.x * b.y) / denom);
+}
+
+// Complex trig functions
+vec2 csin(vec2 z) {
+  return vec2(sin(z.x) * cosh(z.y), cos(z.x) * sinh(z.y));
+}
+vec2 ccos(vec2 z) {
+  return vec2(cos(z.x) * cosh(z.y), -sin(z.x) * sinh(z.y));
+}
+vec2 cexp(vec2 z) {
+  float e = exp(z.x);
+  return vec2(e * cos(z.y), e * sin(z.y));
+}
+vec2 ctan(vec2 z) {
+  vec2 s = csin(z);
+  vec2 co = ccos(z);
+  float denom = dot(co, co);
+  if (denom < 1e-15) return vec2(1e6, 0.0);
+  return vec2((s.x * co.x + s.y * co.y) / denom, (s.y * co.x - s.x * co.y) / denom);
 }
 
 // --- Palette functions ---
@@ -317,6 +362,7 @@ void main() {
   // The aspect ratio is corrected so the fractal isn't stretched.
   vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
   vec2 c, z;
+  vec2 z_prev = vec2(0.0);  // for Phoenix and other 2-step recurrences
 
   // Choose the starting point and constant based on fractal type
   if (u_fractalType == 1) {
@@ -348,6 +394,44 @@ void main() {
     } else if (u_fractalType == 4) {
       // Multibrot: z = z^n + c
       z = cpow(z, u_power) + c;
+    } else if (u_fractalType == 5) {
+      // Phoenix: z = z^2 + c + p*z_prev
+      vec2 z_new = cmul(z, z) + c + u_phoenixP * z_prev;
+      z_prev = z;
+      z = z_new;
+    } else if (u_fractalType == 6) {
+      // Celtic: z = (|Re(z)| + i*Im(z))^2 + c
+      z = vec2(abs(z.x), z.y);
+      z = cmul(z, z) + c;
+    } else if (u_fractalType == 7) {
+      // Perpendicular Burning Ship: z = (Re(z) + i*|Im(z)|)^2 + c
+      z = vec2(z.x, abs(z.y));
+      z = cmul(z, z) + c;
+    } else if (u_fractalType == 8) {
+      // C-Squared: z = z^2 + c^2
+      z = cmul(z, z) + cmul(c, c);
+    } else if (u_fractalType == 9) {
+      // Sine Mandelbrot: z = sin(z) + c
+      z = csin(z) + c;
+    } else if (u_fractalType == 10) {
+      // Cosine Mandelbrot: z = cos(z) + c
+      z = ccos(z) + c;
+    } else if (u_fractalType == 11) {
+      // Exp Mandelbrot: z = exp(z) + c
+      z = cexp(z) + c;
+    } else if (u_fractalType == 12) {
+      // Buffalo: z = |z^2| + c (component-wise abs after squaring)
+      vec2 z2 = cmul(z, z);
+      z = vec2(abs(z2.x), abs(z2.y)) + c;
+    } else if (u_fractalType == 13) {
+      // Rational: z = z^2 + c/z
+      vec2 zz = cmul(z, z);
+      vec2 denom = z;
+      if (dot(denom, denom) < 1e-20) denom = vec2(1e-10, 0.0);
+      z = zz + cdiv(c, denom);
+    } else if (u_fractalType == 14) {
+      // Tan Mandelbrot: z = tan(z) + c
+      z = ctan(z) + c;
     } else {
       // Mandelbrot / Julia: z = z^2 + c
       z = cmul(z, z) + c;
@@ -434,6 +518,7 @@ const U = {
   fractalType: gl.getUniformLocation(program, 'u_fractalType'),
   juliaC:      gl.getUniformLocation(program, 'u_juliaC'),
   power:       gl.getUniformLocation(program, 'u_power'),
+  phoenixP:    gl.getUniformLocation(program, 'u_phoenixP'),
   palette:     gl.getUniformLocation(program, 'u_palette'),
   colorSpeed:  gl.getUniformLocation(program, 'u_colorSpeed'),
   colorOffset: gl.getUniformLocation(program, 'u_colorOffset'),
@@ -461,6 +546,7 @@ const state = {
   juliaX: -0.7269,
   juliaY: 0.1889,
   power: 3.0,
+  phoenixP: 0.5,
 };
 
 // --- Resize ---
@@ -485,6 +571,7 @@ function render() {
   gl.uniform1i(U.fractalType, state.fractalType);
   gl.uniform2f(U.juliaC, state.juliaX, state.juliaY);
   gl.uniform1f(U.power, state.power);
+  gl.uniform1f(U.phoenixP, state.phoenixP);
   gl.uniform1i(U.palette, state.palette);
   gl.uniform1f(U.colorSpeed, state.colorSpeed);
   gl.uniform1f(U.colorOffset, state.colorOffset);
@@ -619,6 +706,11 @@ window.addEventListener('keydown', (e) => {
     case '3': setFractalType(2); break;
     case '4': setFractalType(3); break;
     case '5': setFractalType(4); break;
+    case '6': setFractalType(5); break;
+    case '7': setFractalType(6); break;
+    case '8': setFractalType(7); break;
+    case '9': setFractalType(8); break;
+    case '0': setFractalType(9); break;
   }
 });
 
@@ -634,10 +726,18 @@ function setFractalType(type) {
   // Show/hide type-specific parameter panels
   document.getElementById('juliaParams').style.display = type === 1 ? 'block' : 'none';
   document.getElementById('multibrotParams').style.display = type === 4 ? 'block' : 'none';
+  document.getElementById('phoenixParams').style.display = type === 5 ? 'block' : 'none';
   // Set sensible default center per fractal
   if (type === 2) { view.centerX = -0.5; view.centerY = -0.5; view.zoom = 0.7; }
   else if (type === 1) { view.centerX = 0; view.centerY = 0; view.zoom = 1.0; }
   else if (type === 4) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 5) { view.centerX = 0; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 6) { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
+  else if (type === 7) { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
+  else if (type === 8) { view.centerX = 0; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 9 || type === 10 || type === 11 || type === 14) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 12) { view.centerX = -0.5; view.centerY = -0.5; view.zoom = 0.7; }
+  else if (type === 13) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
@@ -691,6 +791,14 @@ const powerSlider = document.getElementById('power');
 powerSlider.addEventListener('input', () => {
   state.power = parseFloat(powerSlider.value);
   document.getElementById('powerVal').textContent = state.power.toFixed(1);
+  render();
+});
+
+// Phoenix parameter slider
+const phoenixSlider = document.getElementById('phoenixP');
+phoenixSlider.addEventListener('input', () => {
+  state.phoenixP = parseFloat(phoenixSlider.value);
+  document.getElementById('phoenixPVal').textContent = state.phoenixP.toFixed(2);
   render();
 });
 
