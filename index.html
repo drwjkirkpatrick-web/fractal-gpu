@@ -108,6 +108,41 @@
       <option value="62">Airship</option>
       <option value="63">Power Tower</option>
       <option value="64">Rotated Mandelbrot</option>
+      <option value="65">Z² + i·C</option>
+      <option value="66">Z² · C²</option>
+      <option value="67">Dragon</option>
+      <option value="68">Flower</option>
+      <option value="69">Snowflake</option>
+      <option value="70">Cactus</option>
+      <option value="71">Lightning</option>
+      <option value="72">Nebula</option>
+      <option value="73">Galaxy</option>
+      <option value="74">Supernova</option>
+      <option value="75">Black Hole</option>
+      <option value="76">Wormhole</option>
+      <option value="77">Quasar</option>
+      <option value="78">Pulsar</option>
+      <option value="79">Comet</option>
+      <option value="80">Meteor</option>
+      <option value="81">Asteroid</option>
+      <option value="82">Satellite</option>
+      <option value="83">Orbital</option>
+      <option value="84">Lagrange</option>
+      <option value="85">Trojan</option>
+      <option value="86">Resonance</option>
+      <option value="87">Harmonic</option>
+      <option value="88">Symphony</option>
+      <option value="89">Cascade</option>
+      <option value="90">Waterfall</option>
+      <option value="91">Whirlpool</option>
+      <option value="92">Tornado</option>
+      <option value="93">Hurricane</option>
+      <option value="94">Typhoon</option>
+      <option value="95">Monsoon</option>
+      <option value="96">Tsunami</option>
+      <option value="97">Volcano</option>
+      <option value="98">Geyser</option>
+      <option value="99">Eruption</option>
     </select>
   </div>
   <div class="section" id="juliaParams" style="display:none;">
@@ -287,6 +322,41 @@ const FORMULAS = {
   62: ['false', 'z=vec2(abs(z.x),z.y); z=cmul(z,z)+c; z=vec2(z.x,-z.y);'],
   63: ['false', 'z=cpow(z,u_power)+c;'],
   64: ['false', 'float a=0.785398; float ca=cos(a),sa=sin(a); vec2 rz=vec2(ca*z.x-sa*z.y,sa*z.x+ca*z.y); vec2 rzz=cmul(rz,rz); z=vec2(ca*rzz.x+sa*rzz.y,-sa*rzz.x+ca*rzz.y)+c;'],
+  65: ['false', 'z=cmul(z,z)+vec2(-c.y,c.x);'],
+  66: ['false', 'z=cmul(cmul(z,z),cmul(c,c));'],
+  67: ['false', 'z=cmul(z,z)+c; if(z.x>0.0) z.x=-z.x;'],
+  68: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z)+c;'],
+  69: ['false', 'vec2 z2=cmul(z,z); vec2 z3=cmul(z2,z); z=cmul(z3,z)+c;'],
+  70: ['false', 'z=cmul(z,z)+c+vec2(0.5*c.x,0.0);'],
+  71: ['false', 'z=cmul(z,z)+c; z=vec2(z.x,abs(z.y));'],
+  72: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x-z2.y,2.0*z.x*z.y)+vec2(c.x*0.5,c.y);'],
+  73: ['false', 'float r=length(z); float t=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(log(r),t); z=cmul(z,z)+c;'],
+  74: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x*0.5,c.y*0.5);'],
+  75: ['false', 'z=cmul(z,z)+c+vec2(c.x*c.x-c.y*c.y,0.0);'],
+  76: ['false', 'vec2 z2=cmul(z,z); vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=z2+cdiv(c,ci);'],
+  77: ['false', 'vec2 z2=cmul(z,z); z=z2+c+vec2(abs(c.x),c.y);'],
+  78: ['false', 'z=cmul(z,z)+c; z=vec2(abs(z.x),z.y)+c;'],
+  79: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x,-c.y);'],
+  80: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x+c.x,abs(z2.y)+c.y);'],
+  81: ['false', 'z=cmul(z,z)+c; z=vec2(z.x+c.x,z.y-c.y);'],
+  82: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(c.y,c.x);'],
+  83: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x*0.5-c.y*0.5,c.x*0.5+c.y*0.5);'],
+  84: ['false', 'z=cmul(z,z)+c+vec2(c.y*c.y,-c.x*c.x);'],
+  85: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x+c.x,abs(z2.y)+c.y);'],
+  86: ['false', 'z=cmul(z,z)+c; z=vec2(z.x+sin(c.y),z.y+cos(c.x));'],
+  87: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x*sin(c.y),c.y*cos(c.x));'],
+  88: ['false', 'z=cmul(z,z)+c+vec2(sin(c.x),sin(c.y));'],
+  89: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(0.0,c.y);'],
+  90: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x,0.0);'],
+  91: ['false', 'z=cmul(z,z)+c; z=vec2(z.x-c.y,z.y+c.x);'],
+  92: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x,abs(c.y));'],
+  93: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(c.x,0.0);'],
+  94: ['false', 'z=cmul(z,z)+c+vec2(0.0,c.y*2.0);'],
+  95: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x*2.0,c.y);'],
+  96: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(0.0,c.y);'],
+  97: ['false', 'z=cmul(z,z)+c+vec2(c.x*c.x,0.0);'],
+  98: ['false', 'vec2 z2=cmul(z,z); z=z2+vec2(c.x,0.0)+vec2(0.0,c.y);'],
+  99: ['false', 'z=cmul(z,z)+c+vec2(c.x+c.y,c.x-c.y);'],
 };
 
 let currentProgram = null;
@@ -408,6 +478,8 @@ function setFractalType(type) {
   else if (type === 61) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
   else if (type === 63) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
   else if (type === 64) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 65 || type === 66 || type === 70 || type === 71 || type === 72 || type === 77 || type === 78 || type === 80 || type === 82 || type === 83 || type === 85 || type === 86 || type === 88 || type === 89 || type === 90 || type === 92 || type === 94 || type === 95 || type === 96 || type === 97 || type === 98 || type === 99) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 67 || type === 68 || type === 69 || type === 73 || type === 74 || type === 75 || type === 76 || type === 79 || type === 81 || type === 84 || type === 87 || type === 91 || type === 93) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
