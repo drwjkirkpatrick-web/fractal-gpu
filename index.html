@@ -404,6 +404,26 @@ const buffer = gl.createBuffer();
 const view = { centerX: -0.5, centerY: 0.0, zoom: 1.0 };
 const state = { fractalType: 0, maxIter: 256, palette: 0, colorSpeed: 1.0, colorOffset: 0.0, smooth: true, juliaX: -0.7269, juliaY: 0.1889, power: 3.0, phoenixP: 0.5 };
 
+// ─── Adaptive iterations: more zoom = more detail ───
+function getAdaptiveIterations() {
+  const z = view.zoom;
+  if (z < 1) return 128;
+  if (z < 10) return 256;
+  if (z < 100) return 512;
+  if (z < 1000) return 1024;
+  if (z < 10000) return 1536;
+  return 2000;
+}
+
+function updateIterDisplay() {
+  const el = document.getElementById('iterations');
+  const val = document.getElementById('iterVal');
+  if (el && val) {
+    el.value = state.maxIter;
+    val.textContent = state.maxIter;
+  }
+}
+
 // ─── Resize ───
 function resize() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -418,6 +438,9 @@ window.addEventListener('resize', resize);
 
 // ─── Render ───
 function render() {
+  // Auto-scale iterations based on zoom depth
+  state.maxIter = getAdaptiveIterations();
+  updateIterDisplay();
   gl.useProgram(currentProgram);
   gl.uniform2f(U.resolution, canvas.width, canvas.height);
   gl.uniform2f(U.center, view.centerX, view.centerY);
