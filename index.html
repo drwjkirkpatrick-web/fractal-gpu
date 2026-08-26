@@ -160,7 +160,7 @@
   </div>
   <div class="section">
     <div class="section-label">Rendering</div>
-    <div class="slider-row"><label><span>Max Iterations</span><span id="iterVal">256</span></label><input type="range" id="iterations" min="32" max="2000" step="32" value="256"></div>
+    <div class="slider-row"><label><span>Max Iterations</span><span id="iterVal">256</span></label><input type="range" id="iterations" min="32" max="8000" step="32" value="256"></div>
     <div class="slider-row"><label><span>Color Speed</span><span id="speedVal">1.0</span></label><input type="range" id="colorSpeed" min="0.1" max="5" step="0.1" value="1.0"></div>
     <div class="slider-row"><label><span>Color Offset</span><span id="offsetVal">0.0</span></label><input type="range" id="colorOffset" min="0" max="6.283" step="0.01" value="0"></div>
     <div class="toggle-row"><input type="checkbox" id="smooth" checked><label for="smooth">Smooth coloring</label></div>
@@ -240,7 +240,7 @@ void main(){
   if(julia){z=uv*(3.0/u_zoom)+u_center;c=u_juliaC;}
   else{c=uv*(3.0/u_zoom)+u_center;z=vec2(0.0);}
   float iter=0.0,maxI=u_maxIter;bool escaped=false;
-  for(int i=0;i<2000;i++){
+  for(int i=0;i<8000;i++){
     if(float(i)>=maxI) break;
     {{FORMULA}}
     float r2=dot(z,z);
@@ -411,8 +411,9 @@ function getAdaptiveIterations() {
   if (z < 10) return 256;
   if (z < 100) return 512;
   if (z < 1000) return 1024;
-  if (z < 10000) return 1536;
-  return 2000;
+  if (z < 10000) return 2048;
+  if (z < 100000) return 4096;
+  return 8000;
 }
 
 function updateIterDisplay() {
@@ -529,13 +530,13 @@ canvas.addEventListener('wheel', e => {
   const worldX = mx * (3.0 / view.zoom) + view.centerX;
   const worldY = my * (3.0 / view.zoom) + view.centerY;
   const zf = e.deltaY < 0 ? 1.25 : 0.8;
-  view.zoom *= zf; view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14));
+  view.zoom *= zf; view.zoom = Math.max(0.1, view.zoom);
   view.centerX = worldX - mx * (3.0 / view.zoom);
   view.centerY = worldY - my * (3.0 / view.zoom);
   render();
 }, { passive: false });
 canvas.addEventListener('touchstart', e => { e.preventDefault(); if (e.touches.length === 1) touchState = { type: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY }; else if (e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; touchState = { type: 'pinch', dist: Math.hypot(dx, dy), zoom: view.zoom }; } }, { passive: false });
-canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!touchState) return; if (touchState.type === 'pan' && e.touches.length === 1) { const dpr = window.devicePixelRatio || 1; const dx = e.touches[0].clientX - touchState.x, dy = e.touches[0].clientY - touchState.y; const scale = 3.0 / view.zoom / canvas.height * dpr; view.centerX -= dx * scale * 2; view.centerY += dy * scale * 2; touchState.x = e.touches[0].clientX; touchState.y = e.touches[0].clientY; render(); } else if (touchState.type === 'pinch' && e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const dist = Math.hypot(dx, dy); view.zoom = touchState.zoom * (dist / touchState.dist); view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14)); render(); } }, { passive: false });
+canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!touchState) return; if (touchState.type === 'pan' && e.touches.length === 1) { const dpr = window.devicePixelRatio || 1; const dx = e.touches[0].clientX - touchState.x, dy = e.touches[0].clientY - touchState.y; const scale = 3.0 / view.zoom / canvas.height * dpr; view.centerX -= dx * scale * 2; view.centerY += dy * scale * 2; touchState.x = e.touches[0].clientX; touchState.y = e.touches[0].clientY; render(); } else if (touchState.type === 'pinch' && e.touches.length === 2) { const dx = e.touches[0].clientX - e.touches[1].clientX, dy = e.touches[0].clientY - e.touches[1].clientY; const dist = Math.hypot(dx, dy); view.zoom = touchState.zoom * (dist / touchState.dist); view.zoom = Math.max(0.1, view.zoom); render(); } }, { passive: false });
 canvas.addEventListener('touchend', () => touchState = null);
 
 window.addEventListener('keydown', e => {

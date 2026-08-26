@@ -310,7 +310,7 @@ void main(){
   if(julia){z=uv*(3.0/u_zoom)+u_center;c=u_juliaC;}
   else{c=uv*(3.0/u_zoom)+u_center;z=vec2(0.0);}
   float iter=0.0,maxI=u_maxIter; bool escaped=false;
-  for(int i=0;i<2000;i++){
+  for(int i=0;i<8000;i++){
     if(float(i)>=maxI) break;
     {{FORMULA}}
     float r2=dot(z,z);
@@ -504,8 +504,9 @@ function getAdaptiveIterations() {
   if (z < 10) return isLowPower ? 96 : 128;
   if (z < 100) return isLowPower ? 128 : 192;
   if (z < 1000) return isLowPower ? 192 : 256;
-  if (z < 10000) return isLowPower ? 256 : 384;
-  return isLowPower ? 384 : 512;
+  if (z < 10000) return isLowPower ? 256 : 512;
+  if (z < 100000) return isLowPower ? 384 : 1024;
+  return isLowPower ? 512 : 2048;
 }
 
 // ─── FPS counter ───
@@ -633,7 +634,7 @@ canvas.addEventListener('touchmove', e => {
     const scale = p.dist / lastPinchDist;
     const worldBefore = screenToWorld(lastPinchCenter.x, lastPinchCenter.y);
     view.zoom *= scale;
-    view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14));
+    view.zoom = Math.max(0.1, view.zoom);
     const worldAfter = screenToWorld(p.cx, p.cy);
     view.centerX += worldBefore.x - worldAfter.x;
     view.centerY += worldBefore.y - worldAfter.y;
