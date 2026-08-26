@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fractal GPU Explorer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overflow: hidden; background: #000; font-family: 'Segoe UI', system-ui, sans-serif; }
+    canvas { display: block; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+
+    /* --- Control Panel --- */
+    #panel {
+      position: fixed; top: 12px; left: 12px;
+      width: 280px; max-height: calc(100vh - 24px);
+      overflow-y: auto;
+      background: rgba(10, 10, 20, 0.88);
+      border: 1px solid rgba(80, 120, 200, 0.3);
+      border-radius: 10px;
+      padding: 16px;
+      color: #c0c8e0;
+      font-size: 13px;
+      backdrop-filter: blur(10px);
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      z-index: 10;
+    }
+    #panel.hidden { transform: translateX(-310px); opacity: 0; }
+
+    #panel h1 {
+      font-size: 16px; font-weight: 600; margin-bottom: 4px;
+      background: linear-gradient(90deg, #6ab, #a6f);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #panel .subtitle { font-size: 11px; color: #6878a0; margin-bottom: 14px; }
+
+    .section { margin-bottom: 14px; }
+    .section-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+      color: #5a6a90; margin-bottom: 6px; font-weight: 600;
+    }
+
+    select, button {
+      width: 100%; padding: 6px 8px;
+      background: rgba(30, 40, 60, 0.6);
+      border: 1px solid rgba(60, 80, 120, 0.4);
+      border-radius: 5px;
+      color: #c0c8e0; font-size: 12px; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    select:hover, button:hover { border-color: rgba(100, 160, 255, 0.6); }
+    button { margin-top: 4px; }
+    button:active { background: rgba(50, 70, 100, 0.8); }
+
+    .slider-row { margin-bottom: 8px; }
+    .slider-row label {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: #8898b8; margin-bottom: 2px;
+    }
+    .slider-row label span:last-child { color: #a0b0d8; font-variant-numeric: tabular-nums; }
+
+    input[type=range] {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 4px; background: rgba(40, 60, 90, 0.6); border-radius: 2px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #6ab; cursor: pointer;
+      box-shadow: 0 0 6px rgba(100, 170, 255, 0.4);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #6ab; cursor: pointer; border: none;
+    }
+
+    .coord-display {
+      font-size: 10px; color: #5a6a90; font-family: 'Courier New', monospace;
+      line-height: 1.6; word-break: break-all;
+    }
+
+    .palette-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+    }
+    .palette-btn {
+      padding: 4px; font-size: 10px; text-align: center;
+    }
+    .palette-btn.active {
+      border-color: #6ab; background: rgba(60, 100, 160, 0.4);
+    }
+
+    .toggle-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: #8898b8;
+    }
+    .toggle-row input[type=checkbox] { width: 14px; height: 14px; }
+
+    .hint {
+      font-size: 10px; color: #4a5a80; margin-top: 8px;
+      line-height: 1.5; border-top: 1px solid rgba(60, 80, 120, 0.2);
+      padding-top: 8px;
+    }
+    .hint kbd {
+      background: rgba(40, 60, 90, 0.6); padding: 1px 4px;
+      border-radius: 3px; font-size: 10px; color: #a0b0d8;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="panel">
+  <h1>🌌 Fractal GPU</h1>
+  <div class="subtitle">WebGL fragment shader explorer</div>
+
+  <div class="section">
+    <div class="section-label">Fractal Type</div>
+    <select id="fractalType">
+      <option value="0">Mandelbrot Set</option>
+      <option value="1">Julia Set</option>
+      <option value="2">Burning Ship</option>
+      <option value="3">Tricorn (Mandelbar)</option>
+      <option value="4">Multibrot (z^n + c)</option>
+    </select>
+  </div>
+
+  <div class="section" id="juliaParams" style="display:none;">
+    <div class="section-label">Julia Constant (c = a + bi)</div>
+    <div class="slider-row">
+      <label><span>Real (a)</span><span id="juliaXVal">-0.7269</span></label>
+      <input type="range" id="juliaX" min="-2" max="2" step="0.0001" value="-0.7269">
+    </div>
+    <div class="slider-row">
+      <label><span>Imag (b)</span><span id="juliaYVal">0.1889</span></label>
+      <input type="range" id="juliaY" min="-2" max="2" step="0.0001" value="0.1889">
+    </div>
+  </div>
+
+  <div class="section" id="multibrotParams" style="display:none;">
+    <div class="section-label">Multibrot Power (n)</div>
+    <div class="slider-row">
+      <label><span>Exponent n</span><span id="powerVal">3.0</span></label>
+      <input type="range" id="power" min="2" max="10" step="0.1" value="3">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Rendering</div>
+    <div class="slider-row">
+      <label><span>Max Iterations</span><span id="iterVal">256</span></label>
+      <input type="range" id="iterations" min="32" max="2000" step="32" value="256">
+    </div>
+    <div class="slider-row">
+      <label><span>Color Speed</span><span id="speedVal">1.0</span></label>
+      <input type="range" id="colorSpeed" min="0.1" max="5" step="0.1" value="1.0">
+    </div>
+    <div class="slider-row">
+      <label><span>Color Offset</span><span id="offsetVal">0.0</span></label>
+      <input type="range" id="colorOffset" min="0" max="6.283" step="0.01" value="0">
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="smooth" checked>
+      <label for="smooth">Smooth coloring</label>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Color Palette</div>
+    <div class="palette-grid">
+      <button class="palette-btn active" data-palette="0">Cosmic</button>
+      <button class="palette-btn" data-palette="1">Fire</button>
+      <button class="palette-btn" data-palette="2">Ocean</button>
+      <button class="palette-btn" data-palette="3">Electric</button>
+      <button class="palette-btn" data-palette="4">Forest</button>
+      <button class="palette-btn" data-palette="5">Grayscale</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">View</div>
+    <div class="coord-display" id="coords">
+      center: (0.000, 0.000)<br>
+      zoom: 1.0×<br>
+      pixel: 0.003906
+    </div>
+    <button id="resetView">Reset View</button>
+    <button id="screenshot">Save Screenshot (S)</button>
+  </div>
+
+  <div class="hint">
+    <kbd>Scroll</kbd> zoom · <kbd>Drag</kbd> pan · <kbd>H</kbd> toggle panel<br>
+    <kbd>R</kbd> reset · <kbd>S</kbd> screenshot · <kbd>Space</kbd> random palette<br>
+    <kbd>1-5</kbd> switch fractal type
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════
+//  FRACTAL GPU EXPLORER
+//  GPU-accelerated fractal rendering via WebGL fragment shaders.
+//  Each pixel is computed independently on the GPU in parallel.
+// ═══════════════════════════════════════════════════════════════════
+
+// --- WebGL Setup ---
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl', {
+  antialias: false,
+  preserveDrawingBuffer: true,  // for screenshots
+});
+if (!gl) {
+  document.body.innerHTML = '<div style="color:#f80;padding:20px;font-family:monospace">' +
+    'WebGL is not available. Try a different browser or enable hardware acceleration.</div>';
+  throw new Error('No WebGL');
+}
+
+// --- Vertex Shader: full-screen quad ---
+const VERT_SRC = `
+attribute vec2 a_position;
+void main() {
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+// --- Fragment Shader: fractal computation per pixel ---
+// NOTE: The GPU evaluates this shader for every pixel simultaneously,
+// making it orders of magnitude faster than CPU-based rendering.
+const FRAG_SRC = `
+precision highp float;
+
+uniform vec2  u_resolution;   // canvas size in pixels
+uniform vec2  u_center;       // complex plane center
+uniform float u_zoom;         // zoom factor (1 = default view)
+uniform float u_maxIter;      // max iterations
+uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot
+uniform vec2  u_juliaC;       // Julia set constant c
+uniform float u_power;        // Multibrot exponent
+uniform int   u_palette;      // color palette index
+uniform float u_colorSpeed;   // color cycling speed
+uniform float u_colorOffset;  // color cycling offset
+uniform int   u_smooth;       // smooth coloring flag
+
+// --- Complex number helpers ---
+vec2 cmul(vec2 a, vec2 b) {
+  return vec2(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+// Complex power for arbitrary real exponent (for Multibrot)
+// z^n using polar form: (r^n * cos(n*theta), r^n * sin(n*theta))
+vec2 cpow(vec2 z, float n) {
+  float r = length(z);
+  if (r < 1e-15) return vec2(0.0);
+  float theta = atan(z.y, z.x);
+  float rn = pow(r, n);
+  return vec2(rn * cos(n * theta), rn * sin(n * theta));
+}
+
+// --- Palette functions ---
+// Each returns an RGB color for a given t in [0, 1]
+
+vec3 palCosmic(float t) {
+  // Rich purple-blue-cyan swirl
+  return 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + t));
+}
+
+vec3 palFire(float t) {
+  // Black -> red -> orange -> yellow -> white
+  vec3 c = vec3(t);
+  c.r = pow(t, 0.5);
+  c.g = pow(t, 1.5);
+  c.b = pow(t, 4.0);
+  return c;
+}
+
+vec3 palOcean(float t) {
+  // Deep blue to cyan to white foam
+  vec3 c;
+  c.r = 0.5 * sin(6.28318 * t) * t;
+  c.g = 0.3 + 0.7 * t;
+  c.b = 0.4 + 0.6 * pow(1.0 - t, 0.3);
+  return c;
+}
+
+vec3 palElectric(float t) {
+  // Neon green-magenta cycle
+  return 0.5 + 0.5 * cos(6.28318 * (vec3(0.15, 0.55, 0.85) + t));
+}
+
+vec3 palForest(float t) {
+  // Dark green -> emerald -> lime -> gold
+  vec3 c;
+  c.r = pow(t, 2.0) * 0.8;
+  c.g = 0.3 + 0.7 * sqrt(t);
+  c.b = 0.2 * (1.0 - t);
+  return c;
+}
+
+vec3 palGrayscale(float t) {
+  return vec3(t);
+}
+
+vec3 getColor(float t) {
+  if (u_palette == 0) return palCosmic(t);
+  if (u_palette == 1) return palFire(t);
+  if (u_palette == 2) return palOcean(t);
+  if (u_palette == 3) return palElectric(t);
+  if (u_palette == 4) return palForest(t);
+  return palGrayscale(t);
+}
+
+void main() {
+  // Map pixel coordinates to the complex plane.
+  // The aspect ratio is corrected so the fractal isn't stretched.
+  vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution) / u_resolution.y;
+  vec2 c, z;
+
+  // Choose the starting point and constant based on fractal type
+  if (u_fractalType == 1) {
+    // Julia: z starts at the pixel coordinate, c is fixed
+    z = uv * (3.0 / u_zoom) + u_center;
+    c = u_juliaC;
+  } else {
+    // Mandelbrot-family: z starts at 0, c is the pixel coordinate
+    c = uv * (3.0 / u_zoom) + u_center;
+    z = vec2(0.0);
+  }
+
+  float iter = 0.0;
+  float maxI = u_maxIter;
+  bool escaped = false;
+
+  // Main iteration loop — the GPU runs this for every pixel in parallel
+  for (int i = 0; i < 2000; i++) {
+    if (float(i) >= maxI) break;
+
+    // Apply the fractal's iteration formula
+    if (u_fractalType == 2) {
+      // Burning Ship: z = (|Re(z)| + i*|Im(z)|)^2 + c
+      z = vec2(abs(z.x), abs(z.y));
+      z = cmul(z, z) + c;
+    } else if (u_fractalType == 3) {
+      // Tricorn: z = conj(z)^2 + c
+      z = vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
+    } else if (u_fractalType == 4) {
+      // Multibrot: z = z^n + c
+      z = cpow(z, u_power) + c;
+    } else {
+      // Mandelbrot / Julia: z = z^2 + c
+      z = cmul(z, z) + c;
+    }
+
+    float r2 = dot(z, z);
+    if (r2 > 256.0) {
+      // Smooth iteration count for continuous coloring.
+      // Uses the "renormalized" escape time formula:
+      // mu = i + 1 - log(log(|z|)) / log(2)
+      // This eliminates the banding artifacts of integer iteration counts.
+      if (u_smooth == 1) {
+        float log_zn = log(r2) * 0.5;
+        float nu = log(log_zn / log(2.0)) / log(2.0);
+        iter = float(i) + 1.0 - nu;
+      } else {
+        iter = float(i);
+      }
+      escaped = true;
+      break;
+    }
+  }
+
+  if (!escaped) {
+    // Point is inside the set — render as black
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+  } else {
+    // Map iteration count to color via the selected palette
+    float t = iter / maxI;
+    t = fract(t * u_colorSpeed + u_colorOffset);
+    vec3 color = getColor(t);
+    gl_FragColor = vec4(color, 1.0);
+  }
+}
+`;
+
+// --- Shader Compilation ---
+function compileShader(source, type) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    const err = gl.getShaderInfoLog(shader);
+    gl.deleteShader(shader);
+    throw new Error('Shader compile error: ' + err);
+  }
+  return shader;
+}
+
+function createProgram() {
+  const vert = compileShader(VERT_SRC, gl.VERTEX_SHADER);
+  const frag = compileShader(FRAG_SRC, gl.FRAGMENT_SHADER);
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vert);
+  gl.attachShader(prog, frag);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    throw new Error('Link error: ' + gl.getProgramInfoLog(prog));
+  }
+  return prog;
+}
+
+const program = createProgram();
+gl.useProgram(program);
+
+// --- Full-Screen Quad Geometry ---
+// A single rectangle covering the entire viewport so the fragment
+// shader runs for every visible pixel.
+const quad = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+const buffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+
+const aPos = gl.getAttribLocation(program, 'a_position');
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+// --- Uniform Locations ---
+const U = {
+  resolution:  gl.getUniformLocation(program, 'u_resolution'),
+  center:      gl.getUniformLocation(program, 'u_center'),
+  zoom:        gl.getUniformLocation(program, 'u_zoom'),
+  maxIter:     gl.getUniformLocation(program, 'u_maxIter'),
+  fractalType: gl.getUniformLocation(program, 'u_fractalType'),
+  juliaC:      gl.getUniformLocation(program, 'u_juliaC'),
+  power:       gl.getUniformLocation(program, 'u_power'),
+  palette:     gl.getUniformLocation(program, 'u_palette'),
+  colorSpeed:  gl.getUniformLocation(program, 'u_colorSpeed'),
+  colorOffset: gl.getUniformLocation(program, 'u_colorOffset'),
+  smooth:      gl.getUniformLocation(program, 'u_smooth'),
+};
+
+// --- View State ---
+// NOTE: The view is defined by a center point in the complex plane
+// and a zoom factor. The visible region spans 3/u_zoom units
+// vertically (matching the shader's 3.0/u_zoom mapping).
+const view = {
+  centerX: -0.5,
+  centerY: 0.0,
+  zoom: 1.0,
+};
+
+// --- UI State ---
+const state = {
+  fractalType: 0,
+  maxIter: 256,
+  palette: 0,
+  colorSpeed: 1.0,
+  colorOffset: 0.0,
+  smooth: true,
+  juliaX: -0.7269,
+  juliaY: 0.1889,
+  power: 3.0,
+};
+
+// --- Resize ---
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width  = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width  = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Render ---
+function render() {
+  gl.useProgram(program);
+  gl.uniform2f(U.resolution, canvas.width, canvas.height);
+  gl.uniform2f(U.center, view.centerX, view.centerY);
+  gl.uniform1f(U.zoom, view.zoom);
+  gl.uniform1f(U.maxIter, state.maxIter);
+  gl.uniform1i(U.fractalType, state.fractalType);
+  gl.uniform2f(U.juliaC, state.juliaX, state.juliaY);
+  gl.uniform1f(U.power, state.power);
+  gl.uniform1i(U.palette, state.palette);
+  gl.uniform1f(U.colorSpeed, state.colorSpeed);
+  gl.uniform1f(U.colorOffset, state.colorOffset);
+  gl.uniform1i(U.smooth, state.smooth ? 1 : 0);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  updateCoordDisplay();
+}
+
+// --- Coordinate Display ---
+function updateCoordDisplay() {
+  const pixSize = 3.0 / view.zoom / canvas.height * (window.devicePixelRatio || 1);
+  const zoomStr = view.zoom < 1000
+    ? view.zoom.toFixed(1) + '×'
+    : view.zoom.toExponential(2) + '×';
+  document.getElementById('coords').innerHTML =
+    `center: (${view.centerX.toFixed(6)}, ${view.centerY.toFixed(6)})<br>` +
+    `zoom: ${zoomStr}<br>` +
+    `pixel: ${pixSize.toExponential(3)}`;
+}
+
+// --- Mouse Interaction ---
+let isDragging = false;
+let lastMouse = { x: 0, y: 0 };
+
+canvas.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  lastMouse = { x: e.clientX, y: e.clientY };
+});
+
+window.addEventListener('mouseup', () => { isDragging = false; });
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  const dpr = window.devicePixelRatio || 1;
+  const dx = e.clientX - lastMouse.x;
+  const dy = e.clientY - lastMouse.y;
+  // Convert screen delta to complex plane delta
+  const scale = 3.0 / view.zoom / canvas.height * dpr;
+  view.centerX -= dx * scale * 2;  // ×2 because we use resolution.y (half-height)
+  view.centerY += dy * scale * 2;  // Y is flipped (screen down = complex up)
+  lastMouse = { x: e.clientX, y: e.clientY };
+  render();
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  // Zoom toward the mouse position: the point under the cursor
+  // should stay fixed as we zoom in or out.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const mx = (e.clientX * dpr - 0.5 * canvas.width) / canvas.height;
+  const my = -(e.clientY * dpr - 0.5 * canvas.height) / canvas.height;
+
+  // World coordinates under the mouse before zoom
+  const worldX = mx * (3.0 / view.zoom) + view.centerX;
+  const worldY = my * (3.0 / view.zoom) + view.centerY;
+
+  const zoomFactor = e.deltaY < 0 ? 1.25 : 0.8;
+  view.zoom *= zoomFactor;
+  view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14));
+
+  // Adjust center so the mouse-pointed world coordinate stays put
+  view.centerX = worldX - mx * (3.0 / view.zoom);
+  view.centerY = worldY - my * (3.0 / view.zoom);
+
+  render();
+}, { passive: false });
+
+// --- Touch Support (basic pan + pinch zoom) ---
+let touchState = null;
+
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    touchState = { type: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY };
+  } else if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    touchState = { type: 'pinch', dist: Math.hypot(dx, dy), zoom: view.zoom };
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!touchState) return;
+  if (touchState.type === 'pan' && e.touches.length === 1) {
+    const dpr = window.devicePixelRatio || 1;
+    const dx = e.touches[0].clientX - touchState.x;
+    const dy = e.touches[0].clientY - touchState.y;
+    const scale = 3.0 / view.zoom / canvas.height * dpr;
+    view.centerX -= dx * scale * 2;
+    view.centerY += dy * scale * 2;
+    touchState.x = e.touches[0].clientX;
+    touchState.y = e.touches[0].clientY;
+    render();
+  } else if (touchState.type === 'pinch' && e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    view.zoom = touchState.zoom * (dist / touchState.dist);
+    view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14));
+    render();
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { touchState = null; });
+
+// --- Keyboard Controls ---
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  switch (e.key) {
+    case 'h': case 'H':
+      document.getElementById('panel').classList.toggle('hidden');
+      break;
+    case 'r': case 'R':
+      resetView();
+      break;
+    case 's': case 'S':
+      screenshot();
+      break;
+    case ' ':
+      e.preventDefault();
+      state.palette = Math.floor(Math.random() * 6);
+      updatePaletteUI();
+      render();
+      break;
+    case '1': setFractalType(0); break;
+    case '2': setFractalType(1); break;
+    case '3': setFractalType(2); break;
+    case '4': setFractalType(3); break;
+    case '5': setFractalType(4); break;
+  }
+});
+
+// --- UI Wiring ---
+const fractalSel = document.getElementById('fractalType');
+fractalSel.addEventListener('change', () => {
+  setFractalType(parseInt(fractalSel.value));
+});
+
+function setFractalType(type) {
+  state.fractalType = type;
+  fractalSel.value = type;
+  // Show/hide type-specific parameter panels
+  document.getElementById('juliaParams').style.display = type === 1 ? 'block' : 'none';
+  document.getElementById('multibrotParams').style.display = type === 4 ? 'block' : 'none';
+  // Set sensible default center per fractal
+  if (type === 2) { view.centerX = -0.5; view.centerY = -0.5; view.zoom = 0.7; }
+  else if (type === 1) { view.centerX = 0; view.centerY = 0; view.zoom = 1.0; }
+  else if (type === 4) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
+  render();
+}
+
+// Iteration slider
+const iterSlider = document.getElementById('iterations');
+iterSlider.addEventListener('input', () => {
+  state.maxIter = parseInt(iterSlider.value);
+  document.getElementById('iterVal').textContent = state.maxIter;
+  render();
+});
+
+// Color speed
+const speedSlider = document.getElementById('colorSpeed');
+speedSlider.addEventListener('input', () => {
+  state.colorSpeed = parseFloat(speedSlider.value);
+  document.getElementById('speedVal').textContent = state.colorSpeed.toFixed(1);
+  render();
+});
+
+// Color offset
+const offsetSlider = document.getElementById('colorOffset');
+offsetSlider.addEventListener('input', () => {
+  state.colorOffset = parseFloat(offsetSlider.value);
+  document.getElementById('offsetVal').textContent = state.colorOffset.toFixed(2);
+  render();
+});
+
+// Smooth coloring toggle
+document.getElementById('smooth').addEventListener('change', (e) => {
+  state.smooth = e.target.checked;
+  render();
+});
+
+// Julia constant sliders
+const jxSlider = document.getElementById('juliaX');
+jxSlider.addEventListener('input', () => {
+  state.juliaX = parseFloat(jxSlider.value);
+  document.getElementById('juliaXVal').textContent = state.juliaX.toFixed(4);
+  render();
+});
+const jySlider = document.getElementById('juliaY');
+jySlider.addEventListener('input', () => {
+  state.juliaY = parseFloat(jySlider.value);
+  document.getElementById('juliaYVal').textContent = state.juliaY.toFixed(4);
+  render();
+});
+
+// Multibrot power slider
+const powerSlider = document.getElementById('power');
+powerSlider.addEventListener('input', () => {
+  state.power = parseFloat(powerSlider.value);
+  document.getElementById('powerVal').textContent = state.power.toFixed(1);
+  render();
+});
+
+// Palette buttons
+document.querySelectorAll('.palette-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.palette = parseInt(btn.dataset.palette);
+    updatePaletteUI();
+    render();
+  });
+});
+
+function updatePaletteUI() {
+  document.querySelectorAll('.palette-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.palette) === state.palette);
+  });
+}
+
+// Reset view
+function resetView() {
+  setFractalType(state.fractalType);
+}
+document.getElementById('resetView').addEventListener('click', resetView);
+
+// Screenshot
+function screenshot() {
+  // Re-render to ensure the buffer is current, then grab pixels
+  render();
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fractal_${Date.now()}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+document.getElementById('screenshot').addEventListener('click', screenshot);
+
+// --- Initial Render ---
+render();
+</script>
+
+</body>
+</html>
