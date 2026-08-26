@@ -4,15 +4,18 @@ A browser-based fractal renderer that uses **WebGL fragment shaders** for GPU-ac
 
 ## Features
 
-- **25 fractal types** with dynamic shader generation:
+- **35 fractal types** with dynamic shader generation:
   - Mandelbrot Set, Julia Set, Burning Ship
   - Tricorn (Mandelbar), Multibrot (zⁿ + c)
   - Phoenix, Celtic, Perpendicular Burning Ship
   - C-Squared, Sine Mandelbrot, Cosine Mandelbrot
   - Exp Mandelbrot, Buffalo, Rational (z² + c/z), Tan Mandelbrot
-  - **Newton** (z³ − 1), **Nova**, **Absolute C**, **Manowar**
-  - **Lambda**, **Ducks**, **Perp. Celtic**, **Sin Z² + C**
-  - **Cubic** (z³ + c), **Rational z² + c/z²**
+  - Newton (z³ − 1), Nova, Absolute C, Manowar
+  - Lambda, Ducks, Perp. Celtic, Sin Z² + C
+  - Cubic (z³ + c), Rational z² + c/z²
+  - **Spider**, **Z² + 1/C**, **Z² × C**, **Quartic**
+  - **Quintic**, **Mandelbar Julia**, **Z² + C³**, **Z² + Re(C)**
+  - **1/(Z²+C)**, **Bicorn**
 - **6 color palettes**: Cosmic, Fire, Ocean, Electric, Forest, Grayscale
 - **Smooth coloring** using renormalized escape time (no banding artifacts)
 - **Interactive zoom & pan**: mouse wheel zoom toward cursor, drag to pan, touch support

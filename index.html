@@ -144,6 +144,16 @@
       <option value="22">Sin Z² + C</option>
       <option value="23">Cubic (z³+c)</option>
       <option value="24">Rational z²+c/z²</option>
+      <option value="25">Spider</option>
+      <option value="26">Z² + 1/C</option>
+      <option value="27">Z² × C</option>
+      <option value="28">Quartic (z⁴+c)</option>
+      <option value="29">Quintic (z⁵+c)</option>
+      <option value="30">Mandelbar Julia</option>
+      <option value="31">Z² + C³</option>
+      <option value="32">Z² + Re(C)</option>
+      <option value="33">1/(Z²+C)</option>
+      <option value="34">Bicorn</option>
     </select>
   </div>
 
@@ -264,7 +274,7 @@ uniform vec2  u_resolution;   // canvas size in pixels
 uniform vec2  u_center;       // complex plane center
 uniform float u_zoom;         // zoom factor (1 = default view)
 uniform float u_maxIter;      // max iterations
-uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot, 5=Phoenix, 6=Celtic, 7=PerpBS, 8=CSq, 9=Sin, 10=Cos, 11=Exp, 12=Buffalo, 13=Rational, 14=Tan, 15=Newton, 16=Nova, 17=AbsC, 18=Manowar, 19=Lambda, 20=Ducks, 21=PerpCeltic, 22=SinZ2, 23=Cubic, 24=Rational2
+uniform int   u_fractalType;  // 0=Mandelbrot, 1=Julia, 2=BurningShip, 3=Tricorn, 4=Multibrot, 5=Phoenix, 6=Celtic, 7=PerpBS, 8=CSq, 9=Sin, 10=Cos, 11=Exp, 12=Buffalo, 13=Rational, 14=Tan, 15=Newton, 16=Nova, 17=AbsC, 18=Manowar, 19=Lambda, 20=Ducks, 21=PerpCeltic, 22=SinZ2, 23=Cubic, 24=Rational2, 25=Spider, 26=InvC, 27=MulC, 28=Quartic, 29=Quintic, 30=BarJulia, 31=C3, 32=ReC, 33=InvQuad, 34=Bicorn
 uniform vec2  u_juliaC;       // Julia set constant c
 uniform float u_power;        // Multibrot exponent
 uniform float u_phoenixP;     // Phoenix parameter p
@@ -489,6 +499,47 @@ void main() {
       vec2 zz_inv = z;
       if (dot(zz_inv, zz_inv) < 1e-20) zz_inv = vec2(1e-10, 0.0);
       z = zz + cdiv(c, zz);
+    } else if (u_fractalType == 25) {
+      // Spider: z = z^2 + c, c = c/2 + z  (feedback c)
+      vec2 z_new = cmul(z, z) + c;
+      c = 0.5 * c + z;
+      z = z_new;
+    } else if (u_fractalType == 26) {
+      // Z^2 + 1/C
+      vec2 ci = c;
+      if (dot(ci, ci) < 1e-20) ci = vec2(1e-10, 0.0);
+      z = cmul(z, z) + cdiv(vec2(1.0, 0.0), ci);
+    } else if (u_fractalType == 27) {
+      // Z^2 * C
+      z = cmul(cmul(z, z), c);
+    } else if (u_fractalType == 28) {
+      // Quartic: z^4 + c
+      vec2 z2 = cmul(z, z);
+      z = cmul(z2, z2) + c;
+    } else if (u_fractalType == 29) {
+      // Quintic: z^5 + c
+      vec2 z2 = cmul(z, z);
+      vec2 z4 = cmul(z2, z2);
+      z = cmul(z4, z) + c;
+    } else if (u_fractalType == 30) {
+      // Mandelbar Julia: z = conj(z)^2 + c
+      z = vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y) + c;
+    } else if (u_fractalType == 31) {
+      // Z^2 + C^3
+      vec2 c3 = cmul(cmul(c, c), c);
+      z = cmul(z, z) + c3;
+    } else if (u_fractalType == 32) {
+      // Z^2 + Re(C)
+      z = cmul(z, z) + vec2(c.x, 0.0);
+    } else if (u_fractalType == 33) {
+      // 1 / (Z^2 + C)
+      vec2 denom = cmul(z, z) + c;
+      if (dot(denom, denom) < 1e-20) denom = vec2(1e-10, 0.0);
+      z = cdiv(vec2(1.0, 0.0), denom);
+    } else if (u_fractalType == 34) {
+      // Bicorn: z = conj(z)^2 + c + |z|
+      vec2 z_conj_sq = vec2(z.x * z.x - z.y * z.y, -2.0 * z.x * z.y);
+      z = z_conj_sq + c + vec2(length(z), 0.0);
     } else {
       // Mandelbrot / Julia: z = z^2 + c
       z = cmul(z, z) + c;
@@ -802,6 +853,12 @@ function setFractalType(type) {
   else if (type === 22) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
   else if (type === 23) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
   else if (type === 24) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 25) { view.centerX = 0; view.centerY = 0; view.zoom = 0.6; }
+  else if (type === 26 || type === 27 || type === 31 || type === 32) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 28 || type === 29) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 30) { view.centerX = 0; view.centerY = 0; view.zoom = 1.0; }
+  else if (type === 33) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 34) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
