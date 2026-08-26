@@ -287,8 +287,10 @@ uniform float u_colorOffset; uniform int u_smooth;
 vec2 cmul(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
 vec2 cpow(vec2 z,float n){float r=length(z);if(r<1e-15)return vec2(0.0);float t=atan(z.y,z.x);float rn=pow(r,n);return vec2(rn*cos(n*t),rn*sin(n*t));}
 vec2 cdiv(vec2 a,vec2 b){float d=dot(b,b);if(d<1e-15)return vec2(0.0);return vec2((a.x*b.x+a.y*b.y)/d,(a.y*b.x-a.x*b.y)/d);}
-vec2 csin(vec2 z){return vec2(sin(z.x)*cosh(z.y),cos(z.x)*sinh(z.y));}
-vec2 ccos(vec2 z){return vec2(cos(z.x)*cosh(z.y),-sin(z.x)*sinh(z.y));}
+float _sinh(float x){return (exp(x)-exp(-x))*0.5;}
+float _cosh(float x){return (exp(x)+exp(-x))*0.5;}
+vec2 csin(vec2 z){return vec2(sin(z.x)*_cosh(z.y),cos(z.x)*_sinh(z.y));}
+vec2 ccos(vec2 z){return vec2(cos(z.x)*_cosh(z.y),-sin(z.x)*_sinh(z.y));}
 vec2 cexp(vec2 z){float e=exp(z.x);return vec2(e*cos(z.y),e*sin(z.y));}
 vec2 ctan(vec2 z){vec2 s=csin(z),co=ccos(z);float d=dot(co,co);if(d<1e-15)return vec2(1e6,0.0);return vec2((s.x*co.x+s.y*co.y)/d,(s.y*co.x-s.x*co.y)/d);}
 vec3 palCosmic(float t){return 0.5+0.5*cos(6.28318*(vec3(0.0,0.33,0.67)+t));}
