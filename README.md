@@ -4,7 +4,7 @@ A browser-based fractal renderer that uses **WebGL fragment shaders** for GPU-ac
 
 ## Features
 
-- **55 fractal types** with dynamic shader generation:
+- **65 fractal types** with dynamic shader generation:
   - Mandelbrot Set, Julia Set, Burning Ship
   - Tricorn (Mandelbar), Multibrot (zⁿ + c)
   - Phoenix, Celtic, Perpendicular Burning Ship
@@ -19,9 +19,12 @@ A browser-based fractal renderer that uses **WebGL fragment shaders** for GPU-ac
   - Heart Mandelbrot, Z² − C, Z³ − C, Log
   - Asin, Cube Tricorn, Magnet Type I, Collatz
   - Sqrt Mandelbrot, Z·C + Z²
-  - **Sinh Mandelbrot**, **Tanh Mandelbrot**, **Chebyshev**, **Z⁴ − C**
-  - **Feather**, **Scepter**, **Twilight**, **Eiffel Tower**
-  - **Z² + C⁻¹**, **Double Spiral**
+  - Sinh Mandelbrot, Tanh Mandelbrot, Chebyshev, Z⁴ − C
+  - Feather, Scepter, Twilight, Eiffel Tower
+  - Z² + C⁻¹, Double Spiral
+  - **Burning Star**, **Rings**, **Cosh Mandelbrot**, **Acosh**
+  - **Coth**, **Seahorse Valley**, **Dendrite**, **Airship**
+  - **Power Tower**, **Rotated Mandelbrot**
 - **6 color palettes**: Cosmic, Fire, Ocean, Electric, Forest, Grayscale
 - **Smooth coloring** using renormalized escape time (no banding artifacts)
 - **Interactive zoom & pan**: mouse wheel zoom toward cursor, drag to pan, touch support

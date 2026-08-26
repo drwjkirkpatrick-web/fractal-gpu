@@ -98,6 +98,16 @@
       <option value="52">Eiffel Tower</option>
       <option value="53">Z² + C⁻¹</option>
       <option value="54">Double Spiral</option>
+      <option value="55">Burning Star</option>
+      <option value="56">Rings</option>
+      <option value="57">Cosh Mandelbrot</option>
+      <option value="58">Acosh Mandelbrot</option>
+      <option value="59">Coth Mandelbrot</option>
+      <option value="60">Seahorse Valley</option>
+      <option value="61">Dendrite</option>
+      <option value="62">Airship</option>
+      <option value="63">Power Tower</option>
+      <option value="64">Rotated Mandelbrot</option>
     </select>
   </div>
   <div class="section" id="juliaParams" style="display:none;">
@@ -267,6 +277,16 @@ const FORMULAS = {
   52: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x,abs(z2.y))+c;'],
   53: ['false', 'vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=cmul(z,z)+cdiv(vec2(1.0,0.0),ci);'],
   54: ['false', 'z=cmul(z,z)+c+vec2(c.y,c.x);'],
+  55: ['false', 'vec2 z2=cmul(z,z); z=vec2(abs(z2.x),abs(z2.y))+vec2(abs(c.x),abs(c.y));'],
+  56: ['false', 'z=cmul(z,z)+c+vec2(c.x,0.0);'],
+  57: ['false', 'float ex=exp(z.x),em=exp(-z.x); z=vec2((ex+em)*0.5*cos(z.y),(ex-em)*0.5*sin(z.y))+c;'],
+  58: ['false', 'float r=length(z); float t=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(log(r+sqrt(r*r-1.0)),t)+c;'],
+  59: ['false', 'float ex=exp(2.0*z.x),e2=exp(z.x); float ch=(ex+1.0)/(2.0*e2),sh=(ex-1.0)/(2.0*e2); float dn=ch*ch*cos(z.y)*cos(z.y)+sh*sh*sin(z.y)*sin(z.y); if(dn<1e-15) dn=1e-15; z=vec2(sh*ch,sh*ch*sin(z.y)*cos(z.y)-sh*ch*sin(z.y)*cos(z.y))/dn+c;'],
+  60: ['false', 'z=cmul(z,z)+c; z=vec2(z.x,-z.y);'],
+  61: ['false', 'vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x,-c.y);'],
+  62: ['false', 'z=vec2(abs(z.x),z.y); z=cmul(z,z)+c; z=vec2(z.x,-z.y);'],
+  63: ['false', 'z=cpow(z,u_power)+c;'],
+  64: ['false', 'float a=0.785398; float ca=cos(a),sa=sin(a); vec2 rz=vec2(ca*z.x-sa*z.y,sa*z.x+ca*z.y); vec2 rzz=cmul(rz,rz); z=vec2(ca*rzz.x+sa*rzz.y,-sa*rzz.x+ca*rzz.y)+c;'],
 };
 
 let currentProgram = null;
@@ -383,6 +403,11 @@ function setFractalType(type) {
   else if (type === 49 || type === 50 || type === 51 || type === 52) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
   else if (type === 53) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.5; }
   else if (type === 54) { view.centerX = -0.5; view.centerY = -0.5; view.zoom = 0.7; }
+  else if (type === 55 || type === 56 || type === 60 || type === 62) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 57 || type === 58 || type === 59) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 61) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 63) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 64) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
