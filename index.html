@@ -88,6 +88,16 @@
       <option value="42">Collatz</option>
       <option value="43">Sqrt Mandelbrot</option>
       <option value="44">Z·C + Z²</option>
+      <option value="45">Sinh Mandelbrot</option>
+      <option value="46">Tanh Mandelbrot</option>
+      <option value="47">Chebyshev</option>
+      <option value="48">Z⁴ − C</option>
+      <option value="49">Feather</option>
+      <option value="50">Scepter</option>
+      <option value="51">Twilight</option>
+      <option value="52">Eiffel Tower</option>
+      <option value="53">Z² + C⁻¹</option>
+      <option value="54">Double Spiral</option>
     </select>
   </div>
   <div class="section" id="juliaParams" style="display:none;">
@@ -247,6 +257,16 @@ const FORMULAS = {
   42: ['false', 'vec2 opz=vec2(1.0,0.0)+2.0*z; vec2 ct=ccos(3.14159265*z); z=(vec2(1.0,0.0)+4.0*z-cmul(opz,ct))*0.5+c;'],
   43: ['false', 'float r=length(z); float th=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(sqrt(r)*cos(th*0.5),sqrt(r)*sin(th*0.5))+c;'],
   44: ['false', 'z = cmul(z,c)+cmul(z,z);'],
+  45: ['false', 'float ex=exp(z.x),em=exp(-z.x); z=vec2((ex-em)*0.5*cos(z.y),(ex+em)*0.5*sin(z.y))+c;'],
+  46: ['false', 'float e2x=exp(2.0*z.x); float ch=(e2x+1.0)/(2.0*exp(z.x)); float sh=(e2x-1.0)/(2.0*exp(z.x)); float den=ch*ch*cos(z.y)*cos(z.y)+sh*sh*sin(z.y)*sin(z.y); if(den<1e-15) den=1e-15; z=vec2(sh*ch*cos(z.y)*cos(z.y)+sh*ch*sin(z.y)*sin(z.y),ch*sh*sin(z.y)*cos(z.y)-sh*ch*sin(z.y)*cos(z.y))/den+c;'],
+  47: ['false', 'vec2 z2=cmul(z,z); vec2 z4=cmul(z2,z2); z=cmul(z4,vec2(8.0*z.x*z.x*z.x*z.x-8.0*z.x*z.x*z.y*z.y+z.y*z.y*z.y*z.y,-1.0)) + c;'],
+  48: ['false', 'vec2 z2=cmul(z,z); vec2 z4=cmul(z2,z2); z=cmul(z4,z)-c;'],
+  49: ['false', 'z=cmul(z,z)+vec2(abs(c.x),-abs(c.y));'],
+  50: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x-z2.y,2.0*z.x*z.y)+vec2(c.x,-abs(c.y));'],
+  51: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x-c.x,z2.y-c.y)+c;'],
+  52: ['false', 'vec2 z2=cmul(z,z); z=vec2(z2.x,abs(z2.y))+c;'],
+  53: ['false', 'vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=cmul(z,z)+cdiv(vec2(1.0,0.0),ci);'],
+  54: ['false', 'z=cmul(z,z)+c+vec2(c.y,c.x);'],
 };
 
 let currentProgram = null;
@@ -358,6 +378,11 @@ function setFractalType(type) {
   else if (type === 30 || type === 40) { view.centerX = 0; view.centerY = 0; view.zoom = 1.0; }
   else if (type === 37) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
   else if (type === 39) { view.centerX = 0; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 45 || type === 46) { view.centerX = 0; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 47 || type === 48) { view.centerX = 0; view.centerY = 0; view.zoom = 0.7; }
+  else if (type === 49 || type === 50 || type === 51 || type === 52) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.8; }
+  else if (type === 53) { view.centerX = -0.5; view.centerY = 0; view.zoom = 0.5; }
+  else if (type === 54) { view.centerX = -0.5; view.centerY = -0.5; view.zoom = 0.7; }
   else { view.centerX = -0.5; view.centerY = 0; view.zoom = 1.0; }
   render();
 }
