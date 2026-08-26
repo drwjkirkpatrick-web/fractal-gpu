@@ -25,15 +25,23 @@ A browser-based fractal renderer that uses **WebGL fragment shaders** for GPU-ac
   - Burning Star, Rings, Cosh Mandelbrot, Acosh
   - Coth, Seahorse Valley, Dendrite, Airship
   - Power Tower, Rotated Mandelbrot
-  - **Z² + i·C**, **Z² · C²**, **Dragon**, **Flower**
-  - **Snowflake**, **Cactus**, **Lightning**, **Nebula**
-  - **Galaxy**, **Supernova**, **Black Hole**, **Wormhole**
-  - **Quasar**, **Pulsar**, **Comet**, **Meteor**
-  - **Asteroid**, **Satellite**, **Orbital**, **Lagrange**
-  - **Trojan**, **Resonance**, **Harmonic**, **Symphony**
-  - **Cascade**, **Waterfall**, **Whirlpool**, **Tornado**
-  - **Hurricane**, **Typhoon**, **Monsoon**, **Tsunami**
-  - **Volcano**, **Geyser**, **Eruption**
+  - Z² + i·C, Z² · C², Dragon, Flower
+  - Snowflake, Cactus, Lightning, Nebula
+  - Galaxy, Supernova, Black Hole, Wormhole
+  - Quasar, Pulsar, Comet, Meteor
+  - Asteroid, Satellite, Orbital, Lagrange
+  - Trojan, Resonance, Harmonic, Symphony
+  - Cascade, Waterfall, Whirlpool, Tornado
+  - Hurricane, Typhoon, Monsoon, Tsunami
+  - Volcano, Geyser, Eruption
+- **Mobile version**: `index.mobile.html` with touch-optimized UI
+  - Bottom sheet control panel (portrait-friendly)
+  - Two-finger pinch zoom + pan
+  - DPR capped at 1.5× for battery savings
+  - Default 128 iterations (96 on low-power devices)
+  - FPS badge with performance status
+  - Auto-pause on tab hide / 30s inactivity
+  - First-launch gesture hint overlay
 - **6 color palettes**: Cosmic, Fire, Ocean, Electric, Forest, Grayscale
 - **Smooth coloring** using renormalized escape time (no banding artifacts)
 - **Interactive zoom & pan**: mouse wheel zoom toward cursor, drag to pan, touch support
@@ -53,6 +61,8 @@ python3 -m http.server 8080
 ```
 
 Or simply double-click `index.html` to open it directly.
+
+For mobile devices, open `index.mobile.html` instead — it features a touch-optimized bottom-sheet UI, two-finger gestures, and battery-aware rendering.
 
 ## Controls
 

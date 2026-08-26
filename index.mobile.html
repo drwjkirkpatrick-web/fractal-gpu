@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <title>Fractal GPU Mobile</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; touch-action: none; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+
+    /* ─── Bottom Sheet Panel ─── */
+    #panel {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      max-height: 60vh; overflow-y: auto;
+      background: rgba(8, 8, 16, 0.95);
+      border-top: 1px solid rgba(80, 120, 200, 0.3);
+      border-radius: 16px 16px 0 0;
+      padding: 12px 16px 24px;
+      color: #c0c8e0; font-size: 14px;
+      backdrop-filter: blur(12px);
+      transform: translateY(calc(100% - 56px));
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+    }
+    #panel.open { transform: translateY(0); }
+    #panel.dragging { transition: none; }
+
+    /* Handle bar */
+    .panel-handle {
+      width: 36px; height: 4px; background: rgba(100, 140, 220, 0.4);
+      border-radius: 2px; margin: 0 auto 12px;
+    }
+
+    /* Header */
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    #panel h1 {
+      font-size: 17px; font-weight: 600;
+      background: linear-gradient(90deg, #6ab, #a6f);
+      -webkit-background-clip: text; background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .panel-toggle {
+      width: auto; padding: 6px 12px; font-size: 12px;
+      background: rgba(40, 60, 100, 0.6);
+      border: 1px solid rgba(60, 80, 120, 0.4);
+      border-radius: 6px; color: #a0b0d8;
+    }
+
+    /* Sections */
+    .section { margin-bottom: 14px; }
+    .section-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: #5a6a90; margin-bottom: 8px; font-weight: 600;
+    }
+
+    /* Select */
+    select {
+      width: 100%; padding: 10px 12px;
+      background: rgba(30, 40, 60, 0.6);
+      border: 1px solid rgba(60, 80, 120, 0.4);
+      border-radius: 8px;
+      color: #c0c8e0; font-size: 14px;
+    }
+
+    /* Sliders */
+    .slider-row { margin-bottom: 12px; }
+    .slider-row label {
+      display: flex; justify-content: space-between;
+      font-size: 12px; color: #8898b8; margin-bottom: 6px;
+    }
+    .slider-row label span:last-child { color: #a0b0d8; font-variant-numeric: tabular-nums; }
+    input[type=range] {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 6px; background: rgba(40, 60, 90, 0.6); border-radius: 3px;
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #6ab; cursor: pointer;
+      box-shadow: 0 0 8px rgba(100, 170, 255, 0.5);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #6ab; cursor: pointer; border: none;
+    }
+
+    /* Palette row */
+    .palette-row {
+      display: flex; gap: 8px; overflow-x: auto;
+      padding-bottom: 4px; scrollbar-width: none;
+    }
+    .palette-row::-webkit-scrollbar { display: none; }
+    .palette-chip {
+      flex: 0 0 auto; padding: 8px 16px;
+      background: rgba(30, 40, 60, 0.6);
+      border: 1px solid rgba(60, 80, 120, 0.4);
+      border-radius: 20px; font-size: 12px;
+      color: #8898b8; text-align: center;
+      min-width: 60px;
+    }
+    .palette-chip.active {
+      border-color: #6ab; background: rgba(60, 100, 160, 0.4);
+      color: #c0c8e0;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    }
+    button {
+      padding: 12px; background: rgba(30, 40, 60, 0.6);
+      border: 1px solid rgba(60, 80, 120, 0.4);
+      border-radius: 8px; color: #c0c8e0;
+      font-size: 13px; cursor: pointer;
+    }
+    button:active { background: rgba(50, 70, 100, 0.8); transform: scale(0.98); }
+
+    /* Toggle */
+    .toggle-row {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 13px; color: #8898b8;
+    }
+    .toggle-row input[type=checkbox] {
+      width: 44px; height: 24px; -webkit-appearance: none;
+      background: rgba(40, 60, 90, 0.6); border-radius: 12px;
+      position: relative; outline: none;
+    }
+    .toggle-row input[type=checkbox]::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #8898b8; transition: all 0.2s;
+    }
+    .toggle-row input[type=checkbox]:checked {
+      background: rgba(60, 100, 160, 0.4);
+    }
+    .toggle-row input[type=checkbox]:checked::after {
+      left: 22px; background: #6ab;
+    }
+
+    /* Perf badge */
+    .perf-badge {
+      position: fixed; top: 8px; right: 8px;
+      padding: 4px 10px; border-radius: 12px;
+      font-size: 11px; font-weight: 600;
+      background: rgba(10, 20, 40, 0.8);
+      border: 1px solid rgba(60, 80, 120, 0.3);
+      color: #5a8a5a; z-index: 20;
+    }
+    .perf-badge.low { color: #c0a040; }
+    .perf-badge.critical { color: #c05050; }
+
+    /* Hint overlay */
+    #hintOverlay {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(8, 12, 24, 0.9);
+      border: 1px solid rgba(80, 120, 200, 0.3);
+      border-radius: 12px; padding: 16px 20px;
+      color: #8898b8; font-size: 13px;
+      text-align: center; pointer-events: none;
+      opacity: 0; transition: opacity 0.5s;
+      z-index: 30;
+    }
+    #hintOverlay.show { opacity: 1; }
+
+    /* Hidden sections */
+    .hidden-section { display: none; }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="hintOverlay">
+  🤏 Pinch to zoom<br>
+  ✌️ Two-finger drag to pan
+</div>
+
+<div class="perf-badge" id="perfBadge">60 FPS</div>
+
+<div id="panel">
+  <div class="panel-handle" id="panelHandle"></div>
+  <div class="panel-header">
+    <h1>🌌 Fractal GPU</h1>
+    <button class="panel-toggle" id="panelToggle">Hide</button>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Fractal Type</div>
+    <select id="fractalType"></select>
+  </div>
+
+  <div class="section hidden-section" id="juliaParams">
+    <div class="section-label">Julia Constant</div>
+    <div class="slider-row">
+      <label><span>Real</span><span id="juliaXVal">-0.7269</span></label>
+      <input type="range" id="juliaX" min="-2" max="2" step="0.0001" value="-0.7269">
+    </div>
+    <div class="slider-row">
+      <label><span>Imag</span><span id="juliaYVal">0.1889</span></label>
+      <input type="range" id="juliaY" min="-2" max="2" step="0.0001" value="0.1889">
+    </div>
+  </div>
+
+  <div class="section hidden-section" id="multibrotParams">
+    <div class="section-label">Multibrot Power</div>
+    <div class="slider-row">
+      <label><span>Exponent n</span><span id="powerVal">3.0</span></label>
+      <input type="range" id="power" min="2" max="10" step="0.1" value="3">
+    </div>
+  </div>
+
+  <div class="section hidden-section" id="phoenixParams">
+    <div class="section-label">Phoenix Parameter</div>
+    <div class="slider-row">
+      <label><span>Phoenix p</span><span id="phoenixPVal">0.5</span></label>
+      <input type="range" id="phoenixP" min="-1" max="1" step="0.01" value="0.5">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Rendering</div>
+    <div class="slider-row">
+      <label><span>Iterations</span><span id="iterVal">128</span></label>
+      <input type="range" id="iterations" min="32" max="512" step="32" value="128">
+    </div>
+    <div class="slider-row">
+      <label><span>Color Speed</span><span id="speedVal">1.0</span></label>
+      <input type="range" id="colorSpeed" min="0.1" max="5" step="0.1" value="1.0">
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="smooth" checked>
+      <label for="smooth">Smooth coloring</label>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Color Palette</div>
+    <div class="palette-row">
+      <div class="palette-chip active" data-palette="0">Cosmic</div>
+      <div class="palette-chip" data-palette="1">Fire</div>
+      <div class="palette-chip" data-palette="2">Ocean</div>
+      <div class="palette-chip" data-palette="3">Electric</div>
+      <div class="palette-chip" data-palette="4">Forest</div>
+      <div class="palette-chip" data-palette="5">Gray</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="btn-row">
+      <button id="resetView">↺ Reset</button>
+      <button id="screenshot">📷 Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────
+//  FRACTAL GPU MOBILE — Touch-optimized, battery-aware
+//  Dynamic shader generation with mobile GPU considerations
+// ─────────────────────────────────────────────────────────────────
+
+// Detect mobile / low-power device
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+const isLowPower = isMobile && (navigator.hardwareConcurrency <= 4 || navigator.deviceMemory <= 4);
+
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: true, powerPreference: 'low-power' });
+if (!gl) { document.body.innerHTML = '<div style="color:#f80;padding:20px;font-family:monospace;text-align:center">WebGL not available.</div>'; throw new Error('No WebGL'); }
+
+const VERT_SRC = `attribute vec2 a_position; void main() { gl_Position = vec4(a_position, 0.0, 1.0); }`;
+
+const FRAG_HEADER = `precision highp float;
+uniform vec2 u_resolution; uniform vec2 u_center; uniform float u_zoom;
+uniform float u_maxIter; uniform vec2 u_juliaC; uniform float u_power;
+uniform float u_phoenixP; uniform int u_palette; uniform float u_colorSpeed;
+uniform float u_colorOffset; uniform int u_smooth;
+vec2 cmul(vec2 a,vec2 b){return vec2(a.x*b.x-a.y*b.y,a.x*b.y+a.y*b.x);}
+vec2 cpow(vec2 z,float n){float r=length(z);if(r<1e-15)return vec2(0.0);float t=atan(z.y,z.x);float rn=pow(r,n);return vec2(rn*cos(n*t),rn*sin(n*t));}
+vec2 cdiv(vec2 a,vec2 b){float d=dot(b,b);if(d<1e-15)return vec2(0.0);return vec2((a.x*b.x+a.y*b.y)/d,(a.y*b.x-a.x*b.y)/d);}
+vec2 csin(vec2 z){return vec2(sin(z.x)*cosh(z.y),cos(z.x)*sinh(z.y));}
+vec2 ccos(vec2 z){return vec2(cos(z.x)*cosh(z.y),-sin(z.x)*sinh(z.y));}
+vec2 cexp(vec2 z){float e=exp(z.x);return vec2(e*cos(z.y),e*sin(z.y));}
+vec2 ctan(vec2 z){vec2 s=csin(z),co=ccos(z);float d=dot(co,co);if(d<1e-15)return vec2(1e6,0.0);return vec2((s.x*co.x+s.y*co.y)/d,(s.y*co.x-s.x*co.y)/d);}
+vec3 palCosmic(float t){return 0.5+0.5*cos(6.28318*(vec3(0.0,0.33,0.67)+t));}
+vec3 palFire(float t){return vec3(pow(t,0.5),pow(t,1.5),pow(t,4.0));}
+vec3 palOcean(float t){return vec3(0.5*sin(6.28318*t)*t,0.3+0.7*t,0.4+0.6*pow(1.0-t,0.3));}
+vec3 palElectric(float t){return 0.5+0.5*cos(6.28318*(vec3(0.15,0.55,0.85)+t));}
+vec3 palForest(float t){return vec3(pow(t,2.0)*0.8,0.3+0.7*sqrt(t),0.2*(1.0-t));}
+vec3 palGrayscale(float t){return vec3(t);}
+vec3 getColor(float t){if(u_palette==0)return palCosmic(t);if(u_palette==1)return palFire(t);if(u_palette==2)return palOcean(t);if(u_palette==3)return palElectric(t);if(u_palette==4)return palForest(t);return palGrayscale(t);}
+`;
+
+const FRAG_FOOTER = `
+void main(){
+  vec2 uv=(gl_FragCoord.xy-0.5*u_resolution)/u_resolution.y;
+  vec2 c,z; vec2 z_prev=vec2(0.0);
+  bool julia={{JULIA}};
+  if(julia){z=uv*(3.0/u_zoom)+u_center;c=u_juliaC;}
+  else{c=uv*(3.0/u_zoom)+u_center;z=vec2(0.0);}
+  float iter=0.0,maxI=u_maxIter; bool escaped=false;
+  for(int i=0;i<2000;i++){
+    if(float(i)>=maxI) break;
+    {{FORMULA}}
+    float r2=dot(z,z);
+    if(r2>256.0){
+      if(u_smooth==1){float log_zn=log(r2)*0.5;float nu=log(log_zn/log(2.0))/log(2.0);iter=float(i)+1.0-nu;}
+      else iter=float(i);
+      escaped=true; break;
+    }
+  }
+  if(!escaped) gl_FragColor=vec4(0.0,0.0,0.0,1.0);
+  else{float t=fract(iter/maxI*u_colorSpeed+u_colorOffset); gl_FragColor=vec4(getColor(t),1.0);}
+}`;
+
+// ─── Fractal formulas (100 types) ───
+const FORMULAS = {
+  0: ['false','z=cmul(z,z)+c;'], 1: ['true','z=cmul(z,z)+c;'],
+  2: ['false','z=vec2(abs(z.x),abs(z.y)); z=cmul(z,z)+c;'],
+  3: ['false','z=vec2(z.x*z.x-z.y*z.y,-2.0*z.x*z.y)+c;'],
+  4: ['false','z=cpow(z,u_power)+c;'],
+  5: ['false','vec2 zn=cmul(z,z)+c+u_phoenixP*z_prev; z_prev=z; z=zn;'],
+  6: ['false','z=vec2(abs(z.x),z.y); z=cmul(z,z)+c;'],
+  7: ['false','z=vec2(z.x,abs(z.y)); z=cmul(z,z)+c;'],
+  8: ['false','z=cmul(z,z)+cmul(c,c);'],
+  9: ['false','z=csin(z)+c;'], 10: ['false','z=ccos(z)+c;'],
+  11: ['false','z=cexp(z)+c;'],
+  12: ['false','vec2 z2=cmul(z,z); z=vec2(abs(z2.x),abs(z2.y))+c;'],
+  13: ['false','vec2 zz=cmul(z,z); vec2 d=z; if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); z=zz+cdiv(c,d);'],
+  14: ['false','z=ctan(z)+c;'],
+  15: ['false','vec2 z3=cmul(cmul(z,z),z); vec2 n=z3-vec2(1.0,0.0); vec2 d=3.0*cmul(z,z); if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); z=z-cdiv(n,d);'],
+  16: ['false','vec2 z3=cmul(cmul(z,z),z); vec2 n=z3-vec2(1.0,0.0); vec2 d=3.0*cmul(z,z); if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); z=z-2.5*cdiv(n,d)+c;'],
+  17: ['false','z=cmul(z,z)+c+vec2(abs(c.x),abs(c.y));'],
+  18: ['false','vec2 zn=cmul(z,z)+c+z_prev; z_prev=z; z=zn;'],
+  19: ['false','z=cmul(c,cmul(z,vec2(1.0,0.0)-z));'],
+  20: ['false','vec2 z2=cmul(z,z); z=abs(z2)+c;'],
+  21: ['false','z=vec2(z.x,abs(z.y)); z=cmul(z,z)+c;'],
+  22: ['false','vec2 z2=cmul(z,z); z=csin(z2)+c;'],
+  23: ['false','z=cmul(cmul(z,z),z)+c;'],
+  24: ['false','vec2 zz=cmul(z,z); vec2 d=z; if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); z=zz+cdiv(c,cmul(d,d));'],
+  25: ['false','vec2 zn=cmul(z,z)+c; c=0.5*c+z; z=zn;'],
+  26: ['false','vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=cmul(z,z)+cdiv(vec2(1.0,0.0),ci);'],
+  27: ['false','z=cmul(cmul(z,z),c);'],
+  28: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z2)+c;'],
+  29: ['false','vec2 z2=cmul(z,z); vec2 z4=cmul(z2,z2); z=cmul(z4,z)+c;'],
+  30: ['true','z=vec2(z.x*z.x-z.y*z.y,-2.0*z.x*z.y)+c;'],
+  31: ['false','vec2 c3=cmul(cmul(c,c),c); z=cmul(z,z)+c3;'],
+  32: ['false','z=cmul(z,z)+vec2(c.x,0.0);'],
+  33: ['false','vec2 d=cmul(z,z)+c; if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); z=cdiv(vec2(1.0,0.0),d);'],
+  34: ['false','vec2 zcs=vec2(z.x*z.x-z.y*z.y,-2.0*z.x*z.y); z=zcs+c+vec2(length(z),0.0);'],
+  35: ['false','z=cmul(z,z)+c+cmul(c,vec2(abs(c.x),abs(c.y)));'],
+  36: ['false','z=cmul(z,z)-c;'],
+  37: ['false','z=cmul(cmul(z,z),z)-c;'],
+  38: ['false','float r=length(z); float th=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(log(r),th)+c;'],
+  39: ['false','vec2 z2=cmul(z,z); vec2 omz=vec2(1.0,0.0)-z2; float r=length(omz); float th=atan(omz.y,omz.x); if(r<1e-15) r=1e-15; vec2 st=vec2(sqrt(r)*cos(th*0.5),sqrt(r)*sin(th*0.5)); vec2 iz=vec2(-z.y,z.x); vec2 li=iz+st; float r2=length(li); float t2=atan(li.y,li.x); if(r2<1e-15) r2=1e-15; z=vec2(t2,-log(r2))+c;'],
+  40: ['false','vec2 zc=vec2(z.x,-z.y); z=cmul(cmul(zc,zc),zc)+c;'],
+  41: ['false','vec2 n=z+c; vec2 d=z-c; if(dot(d,d)<1e-20) d=vec2(1e-10,0.0); vec2 r=cdiv(n,d); z=cmul(r,r);'],
+  42: ['false','vec2 opz=vec2(1.0,0.0)+2.0*z; vec2 ct=ccos(3.14159265*z); z=(vec2(1.0,0.0)+4.0*z-cmul(opz,ct))*0.5+c;'],
+  43: ['false','float r=length(z); float th=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(sqrt(r)*cos(th*0.5),sqrt(r)*sin(th*0.5))+c;'],
+  44: ['false','z=cmul(z,c)+cmul(z,z);'],
+  45: ['false','float ex=exp(z.x),em=exp(-z.x); z=vec2((ex-em)*0.5*cos(z.y),(ex+em)*0.5*sin(z.y))+c;'],
+  46: ['false','float e2x=exp(2.0*z.x); float ch=(e2x+1.0)/(2.0*exp(z.x)); float sh=(e2x-1.0)/(2.0*exp(z.x)); float den=ch*ch*cos(z.y)*cos(z.y)+sh*sh*sin(z.y)*sin(z.y); if(den<1e-15) den=1e-15; z=vec2(sh*ch,sh*ch*sin(z.y)*cos(z.y)-sh*ch*sin(z.y)*cos(z.y))/den+c;'],
+  47: ['false','vec2 z2=cmul(z,z); vec2 z4=cmul(z2,z2); z=cmul(z4,vec2(8.0*z.x*z.x*z.x*z.x-8.0*z.x*z.x*z.y*z.y+z.y*z.y*z.y*z.y,-1.0))+c;'],
+  48: ['false','vec2 z2=cmul(z,z); vec2 z4=cmul(z2,z2); z=cmul(z4,z)-c;'],
+  49: ['false','z=cmul(z,z)+vec2(abs(c.x),-abs(c.y));'],
+  50: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x-z2.y,2.0*z.x*z.y)+vec2(c.x,-abs(c.y));'],
+  51: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x-c.x,z2.y-c.y)+c;'],
+  52: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x,abs(z2.y))+c;'],
+  53: ['false','vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=cmul(z,z)+cdiv(vec2(1.0,0.0),ci);'],
+  54: ['false','z=cmul(z,z)+c+vec2(c.y,c.x);'],
+  55: ['false','vec2 z2=cmul(z,z); z=vec2(abs(z2.x),abs(z2.y))+vec2(abs(c.x),abs(c.y));'],
+  56: ['false','z=cmul(z,z)+c+vec2(c.x,0.0);'],
+  57: ['false','float ex=exp(z.x),em=exp(-z.x); z=vec2((ex+em)*0.5*cos(z.y),(ex-em)*0.5*sin(z.y))+c;'],
+  58: ['false','float r=length(z); float t=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(log(r+sqrt(r*r-1.0)),t)+c;'],
+  59: ['false','float ex=exp(2.0*z.x); float ch=(ex+1.0)/(2.0*exp(z.x)); float sh=(ex-1.0)/(2.0*exp(z.x)); float dn=ch*ch*cos(z.y)*cos(z.y)+sh*sh*sin(z.y)*sin(z.y); if(dn<1e-15) dn=1e-15; z=vec2(sh*ch,0.0)/dn+c;'],
+  60: ['false','z=cmul(z,z)+c; z=vec2(z.x,-z.y);'],
+  61: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x,-c.y);'],
+  62: ['false','z=vec2(abs(z.x),z.y); z=cmul(z,z)+c; z=vec2(z.x,-z.y);'],
+  63: ['false','z=cpow(z,u_power)+c;'],
+  64: ['false','float a=0.785398; float ca=cos(a),sa=sin(a); vec2 rz=vec2(ca*z.x-sa*z.y,sa*z.x+ca*z.y); vec2 rzz=cmul(rz,rz); z=vec2(ca*rzz.x+sa*rzz.y,-sa*rzz.x+ca*rzz.y)+c;'],
+  65: ['false','z=cmul(z,z)+vec2(-c.y,c.x);'],
+  66: ['false','z=cmul(cmul(z,z),cmul(c,c));'],
+  67: ['false','z=cmul(z,z)+c; if(z.x>0.0) z.x=-z.x;'],
+  68: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z)+c;'],
+  69: ['false','vec2 z2=cmul(z,z); vec2 z3=cmul(z2,z); z=cmul(z3,z)+c;'],
+  70: ['false','z=cmul(z,z)+c+vec2(0.5*c.x,0.0);'],
+  71: ['false','z=cmul(z,z)+c; z=vec2(z.x,abs(z.y));'],
+  72: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x-z2.y,2.0*z.x*z.y)+vec2(c.x*0.5,c.y);'],
+  73: ['false','float r=length(z); float t=atan(z.y,z.x); if(r<1e-15) r=1e-15; z=vec2(log(r),t); z=cmul(z,z)+c;'],
+  74: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x*0.5,c.y*0.5);'],
+  75: ['false','z=cmul(z,z)+c+vec2(c.x*c.x-c.y*c.y,0.0);'],
+  76: ['false','vec2 z2=cmul(z,z); vec2 ci=c; if(dot(ci,ci)<1e-20) ci=vec2(1e-10,0.0); z=z2+cdiv(c,ci);'],
+  77: ['false','vec2 z2=cmul(z,z); z=z2+c+vec2(abs(c.x),c.y);'],
+  78: ['false','z=cmul(z,z)+c; z=vec2(abs(z.x),z.y)+c;'],
+  79: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x,-c.y);'],
+  80: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x+c.x,abs(z2.y)+c.y);'],
+  81: ['false','z=cmul(z,z)+c; z=vec2(z.x+c.x,z.y-c.y);'],
+  82: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(c.y,c.x);'],
+  83: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x*0.5-c.y*0.5,c.x*0.5+c.y*0.5);'],
+  84: ['false','z=cmul(z,z)+c+vec2(c.y*c.y,-c.x*c.x);'],
+  85: ['false','vec2 z2=cmul(z,z); z=vec2(z2.x+c.x,abs(z2.y)+c.y);'],
+  86: ['false','z=cmul(z,z)+c; z=vec2(z.x+sin(c.y),z.y+cos(c.x));'],
+  87: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x*sin(c.y),c.y*cos(c.x));'],
+  88: ['false','z=cmul(z,z)+c+vec2(sin(c.x),sin(c.y));'],
+  89: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(0.0,c.y);'],
+  90: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(c.x,0.0);'],
+  91: ['false','z=cmul(z,z)+c; z=vec2(z.x-c.y,z.y+c.x);'],
+  92: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x,abs(c.y));'],
+  93: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z)+c+vec2(c.x,0.0);'],
+  94: ['false','z=cmul(z,z)+c+vec2(0.0,c.y*2.0);'],
+  95: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x*2.0,c.y);'],
+  96: ['false','vec2 z2=cmul(z,z); z=cmul(z2,z2)+c+vec2(0.0,c.y);'],
+  97: ['false','z=cmul(z,z)+c+vec2(c.x*c.x,0.0);'],
+  98: ['false','vec2 z2=cmul(z,z); z=z2+vec2(c.x,0.0)+vec2(0.0,c.y);'],
+  99: ['false','z=cmul(z,z)+c+vec2(c.x+c.y,c.x-c.y);'],
+};
+
+// Build select options
+const sel = document.getElementById('fractalType');
+const fractalNames = {
+  0:'Mandelbrot Set',1:'Julia Set',2:'Burning Ship',3:'Tricorn',4:'Multibrot',5:'Phoenix',
+  6:'Celtic',7:'Perp. BS',8:'C-Squared',9:'Sin',10:'Cos',11:'Exp',12:'Buffalo',
+  13:'Rational',14:'Tan',15:'Newton',16:'Nova',17:'Abs C',18:'Manowar',19:'Lambda',
+  20:'Ducks',21:'Perp. Celtic',22:'Sin Z²+C',23:'Cubic',24:'Rational²',25:'Spider',
+  26:'Z²+1/C',27:'Z²×C',28:'Quartic',29:'Quintic',30:'Mandelbar Julia',31:'Z²+C³',
+  32:'Z²+Re(C)',33:'1/(Z²+C)',34:'Bicorn',35:'Heart',36:'Z²−C',37:'Z³−C',38:'Log',
+  39:'Asin',40:'Cube Tricorn',41:'Magnet',42:'Collatz',43:'Sqrt',44:'Z·C+Z²',
+  45:'Sinh',46:'Tanh',47:'Chebyshev',48:'Z⁴−C',49:'Feather',50:'Scepter',51:'Twilight',
+  52:'Eiffel',53:'Z²+C⁻¹',54:'Double Spiral',55:'Burning Star',56:'Rings',
+  57:'Cosh',58:'Acosh',59:'Coth',60:'Seahorse',61:'Dendrite',62:'Airship',
+  63:'Power Tower',64:'Rotated',65:'Z²+iC',66:'Z²·C²',67:'Dragon',68:'Flower',
+  69:'Snowflake',70:'Cactus',71:'Lightning',72:'Nebula',73:'Galaxy',74:'Supernova',
+  75:'Black Hole',76:'Wormhole',77:'Quasar',78:'Pulsar',79:'Comet',80:'Meteor',
+  81:'Asteroid',82:'Satellite',83:'Orbital',84:'Lagrange',85:'Trojan',
+  86:'Resonance',87:'Harmonic',88:'Symphony',89:'Cascade',90:'Waterfall',
+  91:'Whirlpool',92:'Tornado',93:'Hurricane',94:'Typhoon',95:'Monsoon',
+  96:'Tsunami',97:'Volcano',98:'Geyser',99:'Eruption'
+};
+for (let i = 0; i < 100; i++) {
+  const opt = document.createElement('option');
+  opt.value = i;
+  opt.textContent = i + '. ' + (fractalNames[i] || 'Fractal ' + i);
+  sel.appendChild(opt);
+}
+
+// ─── Shader builder ───
+let currentProgram = null, U = {};
+function buildShader(type) {
+  const [julia, formula] = FORMULAS[type] || FORMULAS[0];
+  const frag = FRAG_HEADER + FRAG_FOOTER.replace('{{JULIA}}', julia).replace('{{FORMULA}}', formula);
+  const vert = gl.createShader(gl.VERTEX_SHADER);
+  gl.shaderSource(vert, VERT_SRC); gl.compileShader(vert);
+  const f = gl.createShader(gl.FRAGMENT_SHADER);
+  gl.shaderSource(f, frag); gl.compileShader(f);
+  if (!gl.getShaderParameter(f, gl.COMPILE_STATUS)) {
+    console.error('Compile error:', gl.getShaderInfoLog(f));
+    throw new Error('Shader compile failed');
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vert); gl.attachShader(prog, f); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error('Link error');
+  U = {
+    resolution: gl.getUniformLocation(prog, 'u_resolution'),
+    center: gl.getUniformLocation(prog, 'u_center'),
+    zoom: gl.getUniformLocation(prog, 'u_zoom'),
+    maxIter: gl.getUniformLocation(prog, 'u_maxIter'),
+    juliaC: gl.getUniformLocation(prog, 'u_juliaC'),
+    power: gl.getUniformLocation(prog, 'u_power'),
+    phoenixP: gl.getUniformLocation(prog, 'u_phoenixP'),
+    palette: gl.getUniformLocation(prog, 'u_palette'),
+    colorSpeed: gl.getUniformLocation(prog, 'u_colorSpeed'),
+    colorOffset: gl.getUniformLocation(prog, 'u_colorOffset'),
+    smooth: gl.getUniformLocation(prog, 'u_smooth'),
+  };
+  return prog;
+}
+
+const quad = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+const buffer = gl.createBuffer();
+
+// ─── State ───
+const view = { centerX: -0.5, centerY: 0.0, zoom: 1.0 };
+const state = {
+  fractalType: 0, maxIter: isLowPower ? 96 : 128, palette: 0,
+  colorSpeed: 1.0, colorOffset: 0.0, smooth: true,
+  juliaX: -0.7269, juliaY: 0.1889, power: 3.0, phoenixP: 0.5
+};
+
+// ─── FPS counter ───
+let frameCount = 0, lastFpsTime = performance.now();
+const perfBadge = document.getElementById('perfBadge');
+
+// ─── Resize ───
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ─── Render ───
+let animId = null;
+function render() {
+  gl.useProgram(currentProgram);
+  gl.uniform2f(U.resolution, canvas.width, canvas.height);
+  gl.uniform2f(U.center, view.centerX, view.centerY);
+  gl.uniform1f(U.zoom, view.zoom);
+  gl.uniform1f(U.maxIter, state.maxIter);
+  gl.uniform2f(U.juliaC, state.juliaX, state.juliaY);
+  gl.uniform1f(U.power, state.power);
+  gl.uniform1f(U.phoenixP, state.phoenixP);
+  gl.uniform1i(U.palette, state.palette);
+  gl.uniform1f(U.colorSpeed, state.colorSpeed);
+  gl.uniform1f(U.colorOffset, state.colorOffset);
+  gl.uniform1i(U.smooth, state.smooth ? 1 : 0);
+  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+  gl.bufferData(gl.ARRAY_BUFFER, quad, gl.STATIC_DRAW);
+  const aPos = gl.getAttribLocation(currentProgram, 'a_position');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // FPS
+  frameCount++;
+  const now = performance.now();
+  if (now - lastFpsTime >= 1000) {
+    const fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+    perfBadge.textContent = fps + ' FPS';
+    perfBadge.className = 'perf-badge' + (fps < 15 ? ' critical' : fps < 30 ? ' low' : '');
+    frameCount = 0; lastFpsTime = now;
+  }
+}
+
+// ─── Set fractal ───
+const DEFAULT_CENTERS = {
+  0:[-0.5,0,1], 1:[0,0,1], 2:[-0.5,-0.5,0.7], 3:[-0.5,0,1], 4:[0,0,0.7],
+  5:[0,0,0.8], 6:[-0.5,0,1], 7:[-0.5,0,1], 8:[0,0,0.8], 9:[0,0,0.5],
+  10:[0,0,0.5], 11:[0,0,0.5], 12:[-0.5,-0.5,0.7], 13:[0,0,0.5], 14:[0,0,0.5],
+  15:[0,0,0.8], 16:[0,0,0.8], 17:[-0.5,0,1], 18:[-0.5,-0.5,0.7], 19:[0.5,0,0.8],
+  20:[-0.5,-0.5,0.7], 21:[-0.5,0,1], 22:[0,0,0.5], 23:[0,0,0.7], 24:[0,0,0.5],
+  25:[0,0,0.6], 26:[-0.5,0,0.8], 27:[-0.5,0,0.8], 28:[0,0,0.7], 29:[0,0,0.7],
+  30:[0,0,1], 31:[-0.5,0,0.8], 32:[-0.5,0,1], 33:[0,0,0.5], 34:[-0.5,0,0.8],
+  35:[-0.5,0,0.8], 36:[-0.5,0,1], 37:[0,0,0.7], 38:[0,0,0.5], 39:[0,0,0.8],
+  40:[-0.5,0,0.8], 41:[-0.5,0,0.8], 42:[0,0,0.5], 43:[0,0,0.8], 44:[-0.5,0,0.8],
+  45:[0,0,0.5], 46:[0,0,0.5], 47:[0,0,0.7], 48:[0,0,0.7], 49:[-0.5,0,0.8],
+  50:[-0.5,0,0.8], 51:[-0.5,0,0.8], 52:[-0.5,0,0.8], 53:[-0.5,0,0.5], 54:[-0.5,-0.5,0.7],
+  55:[-0.5,0,0.8], 56:[-0.5,0,0.8], 57:[0,0,0.5], 58:[0,0,0.5], 59:[0,0,0.5],
+  60:[-0.5,0,0.8], 61:[0,0,0.7], 62:[-0.5,0,0.8], 63:[0,0,0.7], 64:[-0.5,0,0.8],
+  65:[-0.5,0,0.8], 66:[-0.5,0,0.8], 67:[0,0,0.7], 68:[0,0,0.7], 69:[0,0,0.7],
+  70:[-0.5,0,0.8], 71:[-0.5,0,0.8], 72:[-0.5,0,0.8], 73:[0,0,0.7], 74:[0,0,0.8],
+  75:[0,0,0.8], 76:[0,0,0.7], 77:[-0.5,0,0.8], 78:[-0.5,0,0.8], 79:[0,0,0.7],
+  80:[-0.5,0,0.8], 81:[0,0,0.8], 82:[0,0,0.8], 83:[0,0,0.8], 84:[0,0,0.8],
+  85:[-0.5,0,0.8], 86:[0,0,0.8], 87:[0,0,0.8], 88:[0,0,0.8], 89:[0,0,0.8],
+  90:[0,0,0.8], 91:[0,0,0.8], 92:[0,0,0.8], 93:[0,0,0.8], 94:[0,0,0.8],
+  95:[0,0,0.8], 96:[0,0,0.8], 97:[0,0,0.8], 98:[0,0,0.8], 99:[0,0,0.8],
+};
+
+function setFractalType(type) {
+  state.fractalType = type;
+  sel.value = type;
+  document.getElementById('juliaParams').classList.toggle('hidden-section', type !== 1 && type !== 30);
+  document.getElementById('multibrotParams').classList.toggle('hidden-section', type !== 4);
+  document.getElementById('phoenixParams').classList.toggle('hidden-section', type !== 5);
+  currentProgram = buildShader(type);
+  const dc = DEFAULT_CENTERS[type] || [-0.5, 0, 1.0];
+  view.centerX = dc[0]; view.centerY = dc[1]; view.zoom = dc[2];
+  render();
+}
+
+// ─── Touch: two-finger pan + pinch zoom ───
+let touches = [];
+let lastPinchDist = 0, lastPinchCenter = { x: 0, y: 0 };
+let lastTouchTime = 0;
+
+function getPinch(t) {
+  const dx = t[0].clientX - t[1].clientX;
+  const dy = t[0].clientY - t[1].clientY;
+  return { dist: Math.hypot(dx, dy), cx: (t[0].clientX + t[1].clientX) / 2, cy: (t[0].clientY + t[1].clientY) / 2 };
+}
+
+function screenToWorld(sx, sy) {
+  const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.5 : 2);
+  const mx = (sx * dpr - 0.5 * canvas.width) / canvas.height;
+  const my = -(sy * dpr - 0.5 * canvas.height) / canvas.height;
+  return {
+    x: mx * (3.0 / view.zoom) + view.centerX,
+    y: my * (3.0 / view.zoom) + view.centerY
+  };
+}
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  touches = Array.from(e.touches);
+  if (touches.length === 2) {
+    const p = getPinch(touches);
+    lastPinchDist = p.dist;
+    lastPinchCenter = { x: p.cx, y: p.cy };
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const newTouches = Array.from(e.touches);
+  if (touches.length === 2 && newTouches.length === 2) {
+    // Pinch zoom
+    const p = getPinch(newTouches);
+    const scale = p.dist / lastPinchDist;
+    const worldBefore = screenToWorld(lastPinchCenter.x, lastPinchCenter.y);
+    view.zoom *= scale;
+    view.zoom = Math.max(0.1, Math.min(view.zoom, 1e14));
+    const worldAfter = screenToWorld(p.cx, p.cy);
+    view.centerX += worldBefore.x - worldAfter.x;
+    view.centerY += worldBefore.y - worldAfter.y;
+    lastPinchDist = p.dist;
+    lastPinchCenter = { x: p.cx, y: p.cy };
+    render();
+  }
+  touches = newTouches;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  touches = Array.from(e.touches);
+  if (touches.length === 1) {
+    const p = getPinch([touches[0], { clientX: touches[0].clientX + 1, clientY: touches[0].clientY }]);
+    lastPinchDist = p.dist;
+  }
+});
+
+// ─── Battery / visibility ───
+let paused = false, inactivityTimer = null;
+document.addEventListener('visibilitychange', () => {
+  paused = document.hidden;
+  if (!paused) { lastFpsTime = performance.now(); frameCount = 0; render(); }
+});
+function resetInactivity() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(() => { if (!paused) render(); }, 30000);
+}
+
+// ─── Panel drag ───
+const panel = document.getElementById('panel');
+const handle = document.getElementById('panelHandle');
+let dragStartY = 0, dragStartTransform = 0;
+
+function getPanelTranslate() {
+  return panel.classList.contains('open') ? 0 : panel.offsetHeight - 56;
+}
+
+handle.addEventListener('touchstart', e => {
+  dragStartY = e.touches[0].clientY;
+  dragStartTransform = getPanelTranslate();
+  panel.classList.add('dragging');
+}, { passive: true });
+
+handle.addEventListener('touchmove', e => {
+  const dy = e.touches[0].clientY - dragStartY;
+  const t = Math.max(0, dragStartTransform + dy);
+  panel.style.transform = `translateY(${t}px)`;
+}, { passive: true });
+
+handle.addEventListener('touchend', e => {
+  panel.classList.remove('dragging');
+  panel.style.transform = '';
+  const dy = (e.changedTouches[0]?.clientY || dragStartY) - dragStartY;
+  if (Math.abs(dy) > 30) {
+    if (dy > 0) panel.classList.remove('open');
+    else panel.classList.add('open');
+  }
+});
+
+document.getElementById('panelToggle').addEventListener('click', () => {
+  panel.classList.toggle('open');
+  document.getElementById('panelToggle').textContent = panel.classList.contains('open') ? 'Hide' : 'Show';
+});
+
+// ─── UI wiring ───
+sel.addEventListener('change', e => setFractalType(parseInt(e.target.value)));
+
+function bindSlider(id, key, displayId, fmt) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    state[key] = parseFloat(el.value);
+    if (displayId) document.getElementById(displayId).textContent = fmt ? fmt(state[key]) : state[key];
+    render();
+  });
+}
+bindSlider('juliaX', 'juliaX', 'juliaXVal', v => v.toFixed(4));
+bindSlider('juliaY', 'juliaY', 'juliaYVal', v => v.toFixed(4));
+bindSlider('power', 'power', 'powerVal', v => v.toFixed(1));
+bindSlider('phoenixP', 'phoenixP', 'phoenixPVal', v => v.toFixed(2));
+bindSlider('iterations', 'maxIter', 'iterVal', v => v);
+bindSlider('colorSpeed', 'colorSpeed', 'speedVal', v => v.toFixed(1));
+
+document.getElementById('smooth').addEventListener('change', e => { state.smooth = e.target.checked; render(); });
+
+document.querySelectorAll('.palette-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    state.palette = parseInt(chip.dataset.palette);
+    document.querySelectorAll('.palette-chip').forEach(c => c.classList.toggle('active', parseInt(c.dataset.palette) === state.palette));
+    render();
+  });
+});
+
+document.getElementById('resetView').addEventListener('click', () => setFractalType(state.fractalType));
+document.getElementById('screenshot').addEventListener('click', () => {
+  render();
+  canvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `fractal_${Date.now()}.png`; a.click();
+    URL.revokeObjectURL(url);
+  });
+});
+
+// ─── Hint overlay on first visit ───
+if (!localStorage.getItem('fractalMobileHint')) {
+  const hint = document.getElementById('hintOverlay');
+  hint.classList.add('show');
+  setTimeout(() => hint.classList.remove('show'), 4000);
+  localStorage.setItem('fractalMobileHint', '1');
+}
+
+// ─── Init ───
+setFractalType(0);
+
+// Open panel briefly on load to show it's there
+setTimeout(() => {
+  panel.classList.add('open');
+  setTimeout(() => panel.classList.remove('open'), 2000);
+}, 500);
+</script>
+</body>
+</html>
